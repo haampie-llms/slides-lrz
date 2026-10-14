@@ -1,7 +1,6 @@
 # Helpers for scripted, real terminal recordings (sourced by each demo script).
 # The commands are executed for real; only the typing is simulated.
 . "$HOME/lrz-demo/env.sh" >/dev/null 2>&1
-export SPACK_COLOR=always
 export TERM=xterm-256color
 PROMPT_DIR="${PROMPT_DIR:-}"
 

@@ -1,0 +1,16 @@
+. "$(dirname "$0")/lib.sh"
+rm -rf $HOME/lrz-demo/work/rt; mkdir -p $HOME/lrz-demo/work/rt; cd $HOME/lrz-demo/work/rt
+PROMPT_DIR="rt"
+say "1. download the image as plain files"
+run "skopeo copy -q --src-tls-verify=false docker://localhost:5000/hpc:hpc-env oci:img"
+run "cd img/blobs/sha256 && manifest=\$(jq -r '.manifests[0].digest[7:]' ../../index.json)"
+run "config=\$(jq -r '.config.digest[7:]' \$manifest); jq '.layers | length' \$manifest"
+say "2. untar all layers in order into one directory"
+run "mkdir ~/lrz-demo/work/rt/rootfs && for l in \$(jq -r '.layers[].digest[7:]' \$manifest); do tar -xzf \$l -C ~/lrz-demo/work/rt/rootfs; done"
+run "cd ~/lrz-demo/work/rt && ls rootfs"
+run "ls rootfs/home/bot/lrz-demo/store/linux-x86_64_v3 | head -4"
+run "jq -r '.config.Env[]' img/blobs/sha256/\$config > image.env"
+say "3. run it unprivileged with the image's environment"
+run "bwrap --bind rootfs / --ro-bind /sys /sys --proc /proc --dev /dev --tmpfs /tmp env -i \$(cat image.env) python3 -c 'import h5py; print(h5py.version.info)'"
+run "bwrap --bind rootfs / --ro-bind /sys /sys --proc /proc --dev /dev --tmpfs /tmp env -i \$(cat image.env) mpiexec -n 4 python3 -c 'from mpi4py import MPI; print(\"rank\", MPI.COMM_WORLD.rank)'"
+end

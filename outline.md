@@ -161,10 +161,13 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
   trade-off.
 
 **3.4 Limitations and how to deal with them**
-- **Layer limit.** Docker's layer store caps an image at **125 layers**: 127 lowerdirs in some
-  graph drivers, minus 2 for the init and read-write layers. Base image layers count too, and
-  the error is `max depth exceeded`. Large environments (MPI and Python stacks easily reach 150+
-  packages) hit this. Spack's docs say 128, which is slightly off.
+- **Layer limit (measured with rootless Docker 29.8, see casts/layer-limit-*.cast).**
+  - Classic `overlay2` graph driver: **125 layers** (moby `maxLayerDepth = 125` = 127 lowerdirs
+    minus 2 for init and read-write layers). 126 fails with `failed to register layer: max
+    depth exceeded`. Base image layers count too. Spack's docs say 128, which is slightly off.
+  - Docker ≥ 29 on a fresh install defaults to the **containerd image store**: 499 layers run,
+    500 fail (`invalid argument` from the overlayfs mount, the kernel's ~500 lower layer limit).
+    Podman (containers/storage) has `maxDepth = 500`.
   - Why: overlayfs stacks one lowerdir per layer.
   - Work-arounds: split into several smaller images; use a runtime that flattens layers
     (Apptainer → SIF, Charliecloud, Enroot → squashfs); or squash/flatten into one layer
@@ -187,9 +190,9 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
   squashfs) and Charliecloud (`ch-image pull`, flattened directory) all **flatten** the layers,
   so the 125-layer limit doesn't apply to running there, only to the registry/Docker side.
 - Spack matches the base image's manifest media type so that Apptainer accepts the image.
-- Glibc example: binaries built on Ubuntu 24.04 (glibc 2.39) won't run natively on a SLES 15
-  host (glibc 2.31), but they do run in an image whose base is ≥ 2.39. Containers move the
-  libc assumption into the base image.
+- Glibc example: binaries built on Ubuntu 26.04 (glibc 2.43) won't run natively on SLES 15
+  SP6 (glibc 2.38; SP3–SP5 have 2.31, all measured from SUSE BCI images), but they do run in an
+  image with an `ubuntu:26.04` base. Containers move the libc assumption into the base image.
 - MPI aside: inside-out images (part 2) and archived images (part 3) have the same problem.
   The container's MPI must be ABI-compatible with the host fabric/launcher: either bind-mount
   host MPI (MPICH ABI) or make the MPI an *external* that the base image provides.
@@ -215,15 +218,8 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
 
 ---
 
-### Open questions for you
-1. Live demos or recorded/terminal-output slides? Docker isn't usable here (no daemon access),
-   but `skopeo` works without a daemon, and I can try a rootless registry and rootless Docker
-   to capture real outputs.
-2. Does the tutorial run as a real hands-on (participants with accounts or containers) or as a
-   walkthrough?
-3. MPI/GPU in containers: I added a short aside (3.4b). Keep it, expand it, or drop it?
-4. Several facts to double-check before they go on a slide:
-   - SLES 15's glibc version (I believe 2.31 through SP6).
-   - Whether the containerd/Podman overlay snapshotters have the same ~125 limit as Docker's
-     layer store. I only checked moby: `maxLayerDepth = 125` in
-     `daemon/internal/layer/layer_store.go`, and overlay2 `maxDepth = 128`.
+### Status
+- Demos are real asciinema recordings in `casts/`, made with `demos/*.sh` from a pre-concretized
+  environment (Spack v1.2.2, `spack.lock` already present, so no concretization waits).
+- The demo Spack carries one small patch (`demos/spack-v1.2.2-layout-warning.patch`): no
+  "missing layout.json" warning when pushing to a new, empty build cache.
