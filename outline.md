@@ -63,6 +63,13 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
   `install_tree: padded_length` matters.
 - Signing (`spack gpg`) versus `--unsigned`, and `--update-index` (the tutorial covers neither).
 - Air-gapped or offline targets: filesystem mirrors, `spack mirror create`.
+- Two ways to use a build cache:
+  1. **Shared cache + `spack.yaml`**: both machines configure the same mirror, each concretizes
+     for itself and reuses what fits; the rest is built from source (e.g. binaries from A are
+     reused on B with a newer glibc). "Same software, as much reuse as possible."
+  2. **Archive + `spack.lock`**: reproduce A's binaries on B with `spack install --cache-only`,
+     no source builds. Requires a compatible B (glibc ≥ A's, CPU target, same externals).
+     Still not bit-for-bit: a different install root means relocation.
 - Takeaway: lockfile plus build cache equals "the same binaries, installed by Spack, on a
   compatible host".
 

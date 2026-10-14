@@ -1205,7 +1205,7 @@ required by /home/bot/lrz-demo/store/…/ncurses-6.6-ekvivpv/lib/libtinfo.so.6)
 </section>
 
 <section class="slide">
-  <div class="kicker">Moving the bits</div>
+  <div class="kicker">Sharing binaries</div>
   <h2>Build caches</h2>
   <div class="cols">
     <div>
@@ -1226,9 +1226,41 @@ $ spack install       <span class="c"># fetch binaries, no builds</span></pre>
   install_tree:
     root: /opt/spack
     padded_length: 128</pre>
-      <div class="callout good small" style="font-size:19px">Lock file + build cache = <b>the same binaries</b>, installed by Spack, on a compatible host.</div>
     </div>
   </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Sharing binaries</div>
+  <h2>Two ways to use a build cache</h2>
+  <div class="cols">
+    <div>
+      <h3>Shared cache + <code>spack.yaml</code></h3>
+<pre class="code small"><span class="c"># both machines configure the same mirror</span>
+$ spack env create myenv spack.yaml
+$ spack concretize   <span class="c"># reuses compatible binaries</span>
+$ spack install      <span class="c"># builds the rest</span></pre>
+      <ul class="small">
+        <li>Each machine concretizes for <b>itself</b>; the cache is a source of reusable binaries</li>
+        <li>Binaries that don't fit (older glibc on B, different externals, other target) are <b>built from source</b></li>
+        <li>Works well when B has a <b>newer glibc</b> than A</li>
+      </ul>
+      <div class="callout small" style="font-size:19px">Same software, as much reuse as possible.</div>
+    </div>
+    <div>
+      <h3>Build cache as an archive + <code>spack.lock</code></h3>
+<pre class="code small"><span class="c"># reproduce A's DAG on B, no source builds</span>
+$ spack env create myenv spack.lock
+$ spack install --cache-only</pre>
+      <ul class="small">
+        <li>Machine B gets <b>exactly the binaries</b> built on A</li>
+        <li>B must be compatible: glibc ≥ A's, CPU target, same externals</li>
+        <li>"Exactly", up to <b>relocation</b>: a different install root means rewritten paths in binaries and scripts</li>
+      </ul>
+      <div class="callout good small" style="font-size:19px">The same binaries, installed by Spack, on a compatible host.</div>
+    </div>
+  </div>
+  <aside class="notes">Two different mindsets. Left: the cache is an accelerator; you trust the concretizer to pick what fits and fall back to source builds. Right: the cache is an archive of what was built on A; anything that would need a build is an error. Even then it's not bit-for-bit: binaries are relocated to B's install root, and externals resolve to B's /usr.</aside>
 </section>
 
 <section class="slide with-term">
