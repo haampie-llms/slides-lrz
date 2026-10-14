@@ -189,7 +189,7 @@ aside.notes { display: none; }
 <!-- ======================================================= TITLE -->
 <section class="slide title">
   <div class="logo"><!--@LOGO@--></div>
-  <h1 style="margin-top:34px">Sharing software environments<br>from <code>spack.yaml</code> to container images</h1>
+  <h1 style="margin-top:34px">Sharing software environments</h1>
   <div class="who">Harmen Stoppels · Spack maintainer<br>Leibniz-Rechenzentrum · 15 October 2026</div>
   <aside class="notes">Volunteer talk, not on behalf of a company. 90 minutes: ~65 min talk with recorded demos, then hands-on with the Spack tutorial's binary cache section.</aside>
 </section>
@@ -197,52 +197,47 @@ aside.notes { display: none; }
 <!-- ======================================================= WHAT IS SHARING -->
 <section class="slide">
   <div class="kicker">Introduction</div>
-  <h2>"Can you send me your environment?"</h2>
+  <h2>Sharing a software environment</h2>
   <div class="cols">
     <div>
       <ul>
         <li>A colleague wants to <b>reproduce</b> your results</li>
         <li>You move from a <b>laptop or VM</b> to a cluster</li>
-        <li>CI builds software, <b>users</b> run it</li>
-        <li>The same stack on <b>several clusters</b>, or on short-lived cloud clusters rebuilt every week</li>
+        <li>CI builds a stack, <b>users</b> run it</li>
+        <li>The same stack on <b>several clusters</b>, or on short-lived cloud instances</li>
         <li>A <b>container</b> for Kubernetes, JupyterHub, Apptainer…</li>
       </ul>
     </div>
     <div>
-      <div class="callout">Each of these means something different by "the environment": a list of packages, exact versions, binaries, or a whole file system.</div>
-      <div class="callout warn">The real question each time:<br><b>what do you assume the other machine already has?</b></div>
+      <div class="callout">Many ways in which you can share an "environment": a list of packages, exact versions, binaries, or a whole file system.</div>
     </div>
   </div>
 </section>
 
 <!-- ======================================================= SPECTRUM / AGENDA -->
 <section class="slide">
-  <div class="kicker">The thread through this talk</div>
-  <h2>A spectrum of ways to share</h2>
+  <div class="kicker">Introduction</div>
+  <h2>Spack offers multiple ways to share software stacks</h2>
   <div class="spectrum">
-    <div class="st"><div class="n">spack.yaml</div><div class="d">intent: abstract specs + config</div>
-      <div class="row ship"><b>ships</b>what you want</div>
-      <div class="row assume"><b>assumes</b>Spack, compilers, externals, build time</div></div>
-    <div class="st"><div class="n">spack.lock</div><div class="d">decisions: the concrete DAG</div>
-      <div class="row ship"><b>ships</b>exact versions, variants, hashes</div>
-      <div class="row assume"><b>assumes</b>the same externals, a compatible target</div></div>
+    <div class="st"><div class="n">spack.yaml</div><div class="d">abstract specs + config</div>
+      <div class="row ship"><b>contains</b> high-level intent</div>
+      <div class="row assume"><b>when to use</b> different machines</div></div>
+    <div class="st"><div class="n">spack.lock</div><div class="d">concrete dependency graph</div>
+      <div class="row ship"><b>contains</b>all packages with exact versions and variants</div>
+      <div class="row assume"><b>when to use</b> identical machines</div></div>
     <div class="st"><div class="n">build cache</div><div class="d">binaries</div>
       <div class="row ship"><b>ships</b>compiled, relocatable packages</div>
-      <div class="row assume"><b>assumes</b>Spack, a compatible glibc + CPU, externals</div></div>
+      <div class="row assume"><b>when to use</b>compatible machines</div></div>
     <div class="st"><div class="n">container image</div><div class="d">binaries + OS user land</div>
       <div class="row ship"><b>ships</b>everything except the kernel</div>
-      <div class="row assume"><b>assumes</b>a runtime, kernel, drivers, (MPI fabric)</div></div>
+      <div class="row assume"><b>when to use</b>a runtime, kernel, drivers, (MPI fabric)</div></div>
   </div>
-  <div class="arrow-bar"><span>most flexible</span><div class="line"></div><span>fewest assumptions about the target</span></div>
-  <p class="small muted" style="margin-top:18px">① Spack environments and how far they travel · ② container images built from the inside (<code>spack containerize</code>) · ③ container images as archives (<code>spack buildcache push</code>) · ④ hands-on</p>
-  <aside class="notes">Keep coming back to this slide. Every step to the right moves one thing from "assumed on the target" to "shipped with the artifact". The recurring culprit: externals, and glibc is always one.</aside>
 </section>
 
 <!-- ======================================================= PART 1 -->
 <section class="slide section">
   <div class="num">1</div>
-  <h1>Spack environments<br>and how far they travel</h1>
-  <p>spack.yaml → spack.lock → build caches, and the one external you can never get rid of.</p>
+  <h1>Spack environments</h1>
 </section>
 
 <section class="slide">
@@ -250,7 +245,7 @@ aside.notes { display: none; }
   <h2>Two files: intent and decisions</h2>
   <div class="cols">
     <div>
-      <h3><code>spack.yaml</code>: what you ask for</h3>
+      <h3><code>spack.yaml</code>: input for the solver</h3>
 <pre class="code">spack:
   specs:
   - hdf5+mpi
@@ -259,10 +254,10 @@ aside.notes { display: none; }
   view: false
   concretizer:
     unify: true</pre>
-      <p class="small">Abstract specs + configuration. Short, human-edited, goes into git.</p>
+      <p class="small">Abstract specs + configuration. Meant to be human-readable.</p>
     </div>
     <div>
-      <h3><code>spack.lock</code>: what you got</h3>
+      <h3><code>spack.lock</code>: input for the installer</h3>
 <pre class="code small">{"roots": [{"hash": "jceyzq7…", "spec": "hdf5+mpi"}, …],
  "concrete_specs": {
   "jceyzq7…": {"name": "hdf5", "version": "1.14.6",
@@ -283,7 +278,7 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
 
 <section class="slide">
   <div class="kicker">Sharing spack.yaml</div>
-  <h2>Portable, but you get a different answer</h2>
+  <h2>spack.yaml is "portable"</h2>
   <div class="cols">
     <div>
       <p>On another machine, re-concretization uses <i>that</i> machine's:</p>
@@ -292,10 +287,10 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
         <li>compilers and <b>externals</b> (<code>packages.yaml</code>)</li>
         <li>OS, CPU target, available binaries (reuse)</li>
       </ul>
-      <p>So the result is "the same software, appropriate for this machine". Usually that's what you want.</p>
+      <p>So the result is "the same software, appropriate for this machine".</p>
     </div>
     <div>
-      <p class="small">Pin what matters, in the environment itself:</p>
+      <p class="small">You can pin the things you care about:</p>
 <pre class="code small">spack:
   specs: [hdf5+mpi, mpich, py-h5py]
   repos:
@@ -313,19 +308,19 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
 </section>
 
 <section class="slide with-term">
-  <div class="kicker">Sharing spack.lock · recorded</div>
-  <h2 style="margin-bottom:12px">The lock file has nodes that Spack did not build</h2>
+  <div class="kicker">Sharing spack.lock</div>
+  <h2 style="margin-bottom:12px">spack.lock is machine-specific</h2>
   <div class="term" data-cast="env-lock"></div>
   <aside class="notes">[e] marks externals. gcc and glibc are nodes in the DAG with a prefix of /usr. They contribute to the hash. Copy the lock to another machine: does /usr there have gcc 15.2 and glibc 2.43?</aside>
 </section>
 
 <section class="slide">
   <div class="kicker">Sharing spack.lock</div>
-  <h2>Exact, until the machine leaks in</h2>
+  <h2>spack.lock is machine-specific</h2>
   <div class="cols w60">
     <div>
       <p>Externals are part of the DAG and of every dependent's hash. They record a <b>prefix on this machine</b>.</p>
-      <p>On the target they may not exist, live elsewhere, or have another version.</p>
+      <p>They make sharing difficult across different machines.</p>
       <p class="small muted">Typical externals on HPC systems:</p>
       <table class="t">
         <tr><td>compiler</td><td>system / vendor gcc, oneAPI, nvhpc</td></tr>
@@ -347,20 +342,19 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
     externals:
     - spec: slurm@24.05
       prefix: /usr</pre>
-      <div class="callout">Externals are the explicit list of <b>"assumed on the target"</b>.</div>
     </div>
   </div>
 </section>
 
 <section class="slide">
   <div class="kicker">libc</div>
-  <h2>glibc is the one external you can't avoid</h2>
+  <h2>glibc is more or less a required external</h2>
   <div class="cols">
     <div>
       <ul>
         <li>Since Spack v1.0, libc is an <b>explicit node</b> in the DAG: <code>[e] glibc@2.43</code></li>
         <li>Binaries link against symbol versions such as <code>GLIBC_2.38</code>. They run on a glibc that is <b>at least as new</b>.</li>
-        <li>The concretizer only <b>reuses</b> a binary if it is libc-compatible with the host <span class="muted small">(<code>solver/libc_compatibility.lp</code>)</span></li>
+        <li>The concretizer only <b>reuses</b> a binary if it is libc-compatible with the host</li>
       </ul>
       <div class="callout"><b>Build on the oldest glibc you need to support.</b></div>
     </div>
@@ -374,7 +368,6 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
         <tr><td>Ubuntu 24.04</td><td>2.39</td></tr>
         <tr><td>Ubuntu 26.04 (my laptop)</td><td>2.43</td></tr>
       </table>
-      <p class="small" style="margin-top:14px">The same applies to the <b>CPU target</b>: <code>target=zen4</code> binaries need a Zen 4. For shared binaries use a generic level such as <code>x86_64_v3</code>.</p>
     </div>
   </div>
   <aside class="notes">A laptop on Ubuntu 26.04 builds binaries that will not run on a SLES 15 cluster. Containers move this assumption into the base image (part 3).</aside>
@@ -388,7 +381,7 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
 </section>
 
 <section class="slide">
-  <div class="kicker">Moving the bits</div>
+  <div class="kicker">Sharing binaries</div>
   <h2>Build caches</h2>
   <div class="cols">
     <div>
