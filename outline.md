@@ -126,8 +126,11 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
 - Debugging failed builds inside a container build is painful.
 - The output is one fat layer: no sharing between images that overlap.
 - Binaries built inside the image don't flow back to anyone else unless you add a build cache.
-- Mitigation and hybrid: give the Dockerfile a build cache (mirror in `spack.yaml`, or
-  `RUN --mount=type=cache`), so most of the "build" becomes fetching binaries.
+- Mitigation and hybrid: bind-mount a host file system build cache into the install step
+  (`docker build --build-context buildcache=/shared/cache`, `RUN --mount=type=bind,from=buildcache`),
+  so most of the "build" becomes fetching binaries. Only binaries compatible with the builder
+  image are reused, and nothing flows back: bind mounts discard writes (verified), `type=cache`
+  persists only inside the builder.
 
 ## 3. Containers as an archive: `spack buildcache push --base-image` (≈20 min)
 

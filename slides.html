@@ -1490,36 +1490,28 @@ CMD [ "/bin/bash" ]</pre>
   <h2>Hybrid: give the Dockerfile a build cache</h2>
   <div class="cols">
     <div>
-<pre class="code small">spack:
-  specs: [hdf5+mpi, mpich, py-h5py]
-  mirrors:
-    ci-cache:
-      url: oci://ghcr.io/myorg/buildcache
-      signed: false
-      access_pair:
-        id_variable: REGISTRY_USER
-        secret_variable: REGISTRY_TOKEN
-  container:
-    images: {os: ubuntu:24.04, spack: "1.2"}
-    template: container/WithCache</pre>
-<pre class="code tiny">{% extends "container/Dockerfile" %}
-{% block build_stage %}
-{{ super() }}
-<span class="c"># publish what was just built for the next run</span>
-RUN --mount=type=secret,id=token,env=REGISTRY_TOKEN \
+<pre class="code small"><span class="c"># generated Dockerfile, install step edited by hand</span>
+RUN <span class="k">--mount=type=bind,from=buildcache,target=/mnt/cache</span> \
     cd /opt/spack-environment &amp;&amp; \
-    REGISTRY_USER=ci spack -e . buildcache push ci-cache
-{% endblock %}</pre>
+    spack env activate . &amp;&amp; \
+    spack mirror add --unsigned host /mnt/cache &amp;&amp; \
+    spack install --fail-fast &amp;&amp; spack gc -y</pre>
+<pre class="code dark">$ docker build \
+    <span class="k">--build-context buildcache=/shared/cache</span> \
+    -t hpc-env .</pre>
     </div>
     <div>
       <ul class="small">
-        <li><code>spack install</code> inside the build now <b>fetches</b> most packages instead of compiling them</li>
-        <li>Pushing at the end makes the next image build fast too</li>
+        <li>A file system build cache on the host is visible <b>only during that <code>RUN</code></b>, so it doesn't end up in a layer</li>
+        <li><code>spack install</code> <b>fetches</b> what it can reuse, builds the rest</li>
+        <li>Only binaries compatible with the <b>builder image</b> are reused: a cache built on a newer host glibc doesn't help</li>
+        <li>Nothing flows back: the bind mount is read-only (<code>rw</code> discards writes). <code>type=cache</code> persists, but inside the builder.</li>
         <li>Still one fat layer, still needs a builder</li>
       </ul>
-      <div class="callout">But if the binaries are already in a registry… why run <code>docker build</code> at all?</div>
+      <div class="callout">But if the binaries are already in a build cache… why run <code>docker build</code> at all?</div>
     </div>
   </div>
+  <aside class="notes">Tested with Docker 29.8 + BuildKit: --build-context makes a host directory available as a named context, RUN --mount=type=bind,from=… exposes it during one step. With rw you can write, but the writes are thrown away. type=cache mounts persist between builds, but live in BuildKit's own storage, not on the shared file system.</aside>
 </section>
 
 <!-- ======================================================= PART 3 -->
