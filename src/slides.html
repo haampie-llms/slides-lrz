@@ -484,13 +484,12 @@ $ spack install --cache-only</pre>
 <!-- ======================================================= PART 2 -->
 <section class="slide section">
   <div class="num">2</div>
-  <h1>Container images,<br>using <code>spack containerize</code></h1>
-  <p>Starting from what you know: Dockerfiles.</p>
+  <h1>Container images<br>using <code>spack containerize</code></h1>
 </section>
 
 <section class="slide">
   <div class="kicker">What you know</div>
-  <h2>A Dockerfile: run a command, snapshot the diff, add a layer</h2>
+  <h2>Build with Dockerfile</h2>
   <div class="cols w40">
     <div>
 <pre class="code">FROM ubuntu:24.04
@@ -502,17 +501,15 @@ RUN gcc -o /usr/bin/app /src/app.c</pre>
 $ docker push myorg/app:1.0</pre>
     </div>
     <svg class="diagram" viewBox="0 0 640 330" role="img" aria-label="Dockerfile layers">
-      <rect class="box dim" x="20" y="260" width="600" height="50" rx="8"/><text x="40" y="292" class="mono" font-size="16">ubuntu:24.04 layers</text>
-      <rect class="box" x="20" y="195" width="600" height="50" rx="8"/><text x="40" y="227" class="mono" font-size="16">diff after RUN apt-get …</text>
-      <rect class="box" x="20" y="130" width="600" height="50" rx="8"/><text x="40" y="162" class="mono" font-size="16">diff after COPY</text>
-      <rect class="box" x="20" y="65" width="600" height="50" rx="8"/><text x="40" y="97" class="mono" font-size="16">diff after RUN gcc …</text>
-      <text x="20" y="40" class="lbl">each layer only makes sense on top of the previous ones</text>
+      <rect class="box dim" x="20" y="200" width="600" height="50" rx="8"/><text x="40" y="232" class="mono" font-size="16">ubuntu:24.04 layers</text>
+      <rect class="box" x="20" y="135" width="600" height="50" rx="8"/><text x="40" y="167" class="mono" font-size="16">diff after RUN apt-get …</text>
+      <rect class="box" x="20" y="70" width="600" height="50" rx="8"/><text x="40" y="102" class="mono" font-size="16">diff after COPY</text>
+      <rect class="box" x="20" y="5" width="600" height="50" rx="8"/><text x="40" y="37" class="mono" font-size="16">diff after RUN gcc …</text>
     </svg>
   </div>
   <ul>
-    <li>Each step runs <b>inside</b> a container of the previous state. The changed files become a new layer.</li>
-    <li>Layer cache: change one line and <b>everything after it</b> is rebuilt.</li>
-    <li>The tag names the result, <code>docker push</code> uploads it to a registry. What is behind a tag: part 3.</li>
+    <li>Each step runs <b>inside</b> a container of the previous state.</li>
+    <li>File system changes are captured as a new layer (available thanks to overlayfs).</li>
   </ul>
   <aside class="notes">Familiar ground for everyone. Keep the two points that matter later: layers are diffs stacked in order, and a change invalidates everything after it.</aside>
 </section>
@@ -543,9 +540,9 @@ $ docker build -t hpc-env .</pre>
       <ul class="small">
         <li><code>images:</code> either an OS + Spack version (official <code>spack/ubuntu-noble:1.2</code> builder images), or custom <code>build</code> / <code>final</code> images, e.g. an NVIDIA CUDA base with CUDA as an external</li>
         <li><code>os_packages:</code> distro packages for the build or final stage</li>
-        <li><code>strip</code>, <code>labels</code>, <code>depfile: true</code> (parallel <code>make</code> install)</li>
+        <li><code>strip</code>, <code>labels</code></li>
         <li><code>format: singularity</code> writes a <code>.def</code> file</li>
-        <li>Jinja2 template extension for anything else</li>
+        <li>Jinja2 template extension for customization</li>
       </ul>
     </div>
   </div>
@@ -580,8 +577,7 @@ RUN cd /opt/spack-environment &amp;&amp; \
 COPY --from=builder /opt/spack-environment /opt/spack-environment
 COPY --from=builder /opt/software /opt/software
 COPY --from=builder /opt/views /opt/views
-RUN { echo '#!/bin/sh' &amp;&amp; echo '.' /opt/spack-environment/activate.sh \
-      &amp;&amp; echo 'exec "$@"'; } &gt; /entrypoint.sh &amp;&amp; chmod a+x /entrypoint.sh
+...
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "/bin/bash" ]</pre>
     <div>
@@ -614,8 +610,7 @@ CMD [ "/bin/bash" ]</pre>
         <li>Needs a builder (Docker, Podman, Buildah, Apptainer), often <b>root or fakeroot</b>: usually not on an HPC login node</li>
         <li>Everything in one <code>RUN</code>: any change to <code>spack.yaml</code> rebuilds <b>everything</b>; a failure throws away all finished dependencies</li>
         <li>Debugging a failed build inside a container build is painful</li>
-        <li>One fat layer: no sharing between overlapping images</li>
-        <li>Binaries built in there don't help anyone else</li>
+        <li>One fat layer: no sharing between different images/tags</li>
       </ul>
     </div>
   </div>
