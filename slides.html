@@ -1319,7 +1319,7 @@ $ spack install --cache-only</pre>
   <h2>Keeping environments shareable</h2>
   <div class="cols">
     <div>
-      <h3>Separate "what" from "where"</h3>
+      <h3>Config includes can help</h3>
 <pre class="code small">spack:
   specs: [hdf5+mpi, mpich, py-h5py]
   include:
@@ -1327,36 +1327,34 @@ $ spack install --cache-only</pre>
     when: hostname.startswith("login")
   - path: ./site/laptop.yaml
     when: platform == "darwin"</pre>
-      <p class="small">Site specifics (externals, compilers, mirrors, install root) go in included site scopes, not in <code>spack.yaml</code>.</p>
+      <p class="small">Site specifics (externals, compilers, install root) go in included site scopes, not in <code>spack.yaml</code>.</p>
     </div>
     <div>
-      <h3>What to keep external</h3>
+      <h3>Using few externals</h3>
       <ul class="small">
         <li><b class="good">Build it</b> when it's cheap and the host version doesn't matter: cmake, python, zlib, openblas…</li>
-        <li><b class="warn">Keep external</b> when it must match the host: MPI tuned for the fabric, GPU drivers, Slurm/PMIx</li>
-        <li>Fewer externals means more portable lock files and more reusable binaries.</li>
+        <li><b class="warn">Keep external</b> when it must match the host: MPI tuned for the fabric, Slurm/PMIx, ...</li>
+        <li>I do not advocate <code>spack external find</code> as much (but many people do).</li>
       </ul>
-      <div class="callout warn small" style="font-size:19px">Containers do <b>not</b> solve the "must match the host" category either. More on that later.</div>
     </div>
   </div>
 </section>
 
 <section class="slide">
   <div class="kicker">Context</div>
-  <h2>Other points on the same spectrum</h2>
+  <h2>What other tools do</h2>
   <div class="cols c3">
-    <div class="card acc"><h3>CVMFS-style stacks (EESSI)</h3><p>Ship their <b>own libc</b> in a compatibility layer, so the glibc external disappears. The cost is a dedicated file system and client on every node.</p></div>
-    <div class="card acc"><h3>Conda / pixi</h3><p>Ship everything <b>except glibc</b> (<code>__glibc</code> virtual package). The same assumption Spack makes.</p></div>
-    <div class="card acc"><h3>Spack on top</h3><p>A site stack as an <b>upstream</b>, a user environment on top, a build cache shared between clusters.</p></div>
+    <div class="card acc"><h3>EESSI (CVMFS) / Nix / Guix</h3><p>Ship their <b>own libc</b> (or libcs) at a particular absolute path like </p><ul><li><code>/cvmfs/foo.cern.ch/...</code></li><li><code>/nix/store/...</code></li><li><code>/gnu/store/...</code></li></ul></div>
+    <div class="card acc"><h3>Conda / pip</h3><p>Link against old glibc and assume compatibility, largely similar to Spack.</p></div>
+    <div class="card acc"><h3>Spack v1.4?</h3><p>I'm looking at a way to make glibc installable like any other package, which would eliminate the remaining external; we'd support both approaches.</p></div>
   </div>
-  <div class="callout good" style="margin-top:22px">Short-lived clusters (cloud VMs, CI runners, test systems) recreate the same environment over and over. A shared build cache turns <i>"rebuild the stack"</i> into <i>"download binaries"</i>.</div>
 </section>
 
 <!-- ======================================================= PART 2 -->
 <section class="slide section">
   <div class="num">2</div>
-  <h1>Container images,<br>built from the inside</h1>
-  <p>What an image really is, and how <code>spack containerize</code> produces one with a Dockerfile.</p>
+  <h1>Container images,<br>using <code>spack containerize</code></h1>
+  <p>And an attempt to "demystify" containers.</p>
 </section>
 
 <section class="slide">
