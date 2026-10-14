@@ -1508,7 +1508,7 @@ RUN <span class="k">--mount=type=bind,from=buildcache,target=/mnt/cache</span> \
         <li>Nothing flows back: the bind mount is read-only (<code>rw</code> discards writes). <code>type=cache</code> persists, but inside the builder.</li>
         <li>Still one fat layer, still needs a builder</li>
       </ul>
-      <div class="callout">But if the binaries are already in a build cache… why run <code>docker build</code> at all?</div>
+      <div class="callout">What if a build cache and a container image were the same thing?</div>
     </div>
   </div>
   <aside class="notes">Tested with Docker 29.8 + BuildKit: --build-context makes a host directory available as a named context, RUN --mount=type=bind,from=… exposes it during one step. With rw you can write, but the writes are thrown away. type=cache mounts persist between builds, but live in BuildKit's own storage, not on the shared file system.</aside>
@@ -1517,8 +1517,8 @@ RUN <span class="k">--mount=type=bind,from=buildcache,target=/mnt/cache</span> \
 <!-- ======================================================= PART 3 -->
 <section class="slide section">
   <div class="num">3</div>
-  <h1>Container images<br>as archives</h1>
-  <p>An attempt to "demystify" containers, and <code>spack buildcache push --base-image</code>: no Dockerfile, no daemon, no root.</p>
+  <h1>Container images<br>as build caches</h1>
+  <p>A bit of container "demystification"</p>
 </section>
 
 <section class="slide">
