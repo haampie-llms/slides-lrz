@@ -1,16 +1,12 @@
 . "$(dirname "$0")/lib.sh"
 cd $HOME/lrz-demo/work
 PROMPT_DIR=""
-say "one tag per package, plus the two image tags"
-run "skopeo list-tags --tls-verify=false docker://localhost:5000/hpc | jq -r '.Tags[]' | grep -v '\.spack\$'"
-run "skopeo list-tags --tls-verify=false docker://localhost:5000/hpc | jq -r '.Tags[]' | grep -c '\.spack\$'"
-say "layers of the two images, and how many they share"
-run "layers() { skopeo inspect --tls-verify=false docker://localhost:5000/hpc:\$1 | jq -r '.Layers[]'; }"
-run "layers hdf5 | wc -l; layers hpc-env | wc -l; comm -12 <(layers hdf5 | sort) <(layers hpc-env | sort) | wc -l"
-say "the image config: PATH lists every package prefix (no view)"
-run "skopeo inspect --tls-verify=false --config docker://localhost:5000/hpc:hpc-env | jq -r '.config.Env[]' | cut -c 1-108"
-say "a package tag is also a build cache entry: the spec is in the config, the layer is Spack's tarball"
-run "t=\$(skopeo list-tags --tls-verify=false docker://localhost:5000/hpc | jq -r '.Tags[] | select(startswith(\"zlib-ng-\"))')"
-run "skopeo inspect --raw --tls-verify=false --config docker://localhost:5000/hpc:\$t | jq -c 'del(.config, .rootfs, .history) | .spec = (.spec.nodes[0] | {name, version, hash})'"
-run "curl -s localhost:5000/v2/hpc/blobs/\$(layers \$t | tail -1) | tar -tz | grep -E 'libz.so.1\$|zlib.h\$'"
+say "the registry now has one tag per package, plus our two image tags"
+run "skopeo list-tags --tls-verify=false docker://localhost:5000/hpc"
+pause
+say "the hpc-env image: base image layers + one layer per package"
+run "skopeo inspect --tls-verify=false docker://localhost:5000/hpc:hpc-env | jq '.Layers | length'"
+say "its config sets the environment, pointing into each package prefix (first entry shown)"
+run "skopeo inspect --tls-verify=false --config docker://localhost:5000/hpc:hpc-env | jq -r '.config.Env[]' | cut -d: -f1"
+pause
 end

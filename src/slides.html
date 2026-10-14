@@ -138,7 +138,13 @@ svg.diagram .lbl { font-size: 15px; fill: var(--muted); }
 
 /* ---------- terminal recordings ---------- */
 .term { flex: 1; min-height: 0; position: relative; border-radius: 10px; overflow: hidden; background: var(--term-bg); }
+.term { display: flex; flex-direction: column; }
+.term .holder { flex: 1; min-height: 0; }
 .term .ap-wrapper { width: 100%; height: 100%; }
+.term-cmd { display: none; flex: none; font-family: var(--mono); font-size: 16px; color: #e6e6e6; background: #22262c;
+  padding: 7px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #2f343b; }
+.term-cmd.show { display: block; }
+.term-cmd::before { content: "$ "; color: #6cc070; font-weight: 700; }
 .term .ap-player { border-radius: 0; }
 .term .transcript { display: none; }
 .term.missing { display: flex; align-items: center; justify-content: center; }
@@ -164,7 +170,7 @@ aside.notes { display: none; }
   #deck { position: static; transform: none !important; width: auto; height: auto; }
   .slide { display: flex !important; position: relative; page-break-after: always; break-after: page; }
   .slide:last-child { page-break-after: auto; break-after: auto; }
-  #notes, #help, .term-hint { display: none !important; }
+  #notes, #help, .term-hint, .term-cmd { display: none !important; }
   .term .ap-wrapper { display: none !important; }
   .term { background: var(--term-bg); padding: 12px 16px; }
   .term .transcript {
@@ -376,9 +382,9 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
 
 <section class="slide with-term">
   <div class="kicker">libc · recorded</div>
-  <h2 style="margin-bottom:12px">What does a binary actually require?</h2>
+  <h2 style="margin-bottom:12px">What a too-old glibc looks like</h2>
   <div class="term" data-cast="glibc"></div>
-  <aside class="notes">The required version is often lower than the build host's glibc, but Spack conservatively assumes the build host's version.</aside>
+  <aside class="notes">Same file, same path, only the OS around it differs. Not every binary needs the newest symbols (many run fine), but Spack conservatively assumes the build host's glibc.</aside>
 </section>
 
 <section class="slide">
@@ -411,7 +417,7 @@ $ spack install       <span class="c"># fetch binaries, no builds</span></pre>
 <section class="slide with-term">
   <div class="kicker">Build caches · recorded</div>
   <h2 style="margin-bottom:12px">Push on one machine, install from the lock file on another</h2>
-  <div class="term" data-cast="buildcache-fs" data-speed="1.5"></div>
+  <div class="term" data-cast="buildcache-fs"></div>
 </section>
 
 <section class="slide">
@@ -672,13 +678,13 @@ RUN --mount=type=secret,id=token,env=REGISTRY_TOKEN \
   <h2>A Spack build cache tarball is already a layer</h2>
   <div class="cols w60">
     <div>
-      <p>Spack's tarball of one package stores paths as the absolute install prefix <b>without the leading <code>/</code></b>:</p>
+      <p>Spack's build cache tarball of a package contains its files <b>at their install prefix</b>:</p>
 <pre class="code tiny">$ curl -s localhost:5000/v2/hpc/blobs/sha256:829c… | tar -tz
 home/bot/lrz-demo/store/linux-x86_64_v3/zlib-ng-2.3.3-g72d…/
 home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/include/zlib.h
 home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 …</pre>
-      <p>Extracted at <code>/</code>, it lands exactly where it was built. That's what a layer is.</p>
+      <p>Unpack it on top of a base image and the package is exactly where it was built. <b>That's all a layer is.</b></p>
     </div>
     <svg class="diagram" viewBox="0 0 460 360" role="img" aria-label="Same blob two consumers">
       <rect class="box good" x="120" y="20" width="220" height="70" rx="10"/>
@@ -723,7 +729,7 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 <section class="slide with-term">
   <div class="kicker">spack buildcache push · recorded</div>
   <h2 style="margin-bottom:12px">Push an environment, then push a bigger one</h2>
-  <div class="term" data-cast="push-oci" data-speed="1.5"></div>
+  <div class="term" data-cast="push-oci"></div>
   <aside class="notes">Second push: only the packages not yet in the registry are uploaded. The other layers are already there under their digest.</aside>
 </section>
 
@@ -756,21 +762,42 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 
 <section class="slide with-term">
   <div class="kicker">Inspecting the result · recorded</div>
-  <h2 style="margin-bottom:12px">Layers, environment, and sharing between tags</h2>
+  <h2 style="margin-bottom:12px">Tags, layers and environment</h2>
   <div class="term" data-cast="inspect-oci"></div>
 </section>
 
 <section class="slide with-term">
-  <div class="kicker">An image is an archive · recorded</div>
-  <h2 style="margin-bottom:12px">A container runtime in three commands: skopeo, tar, bwrap</h2>
+  <div class="kicker">docker run · recorded</div>
+  <h2 style="margin-bottom:12px">Run it like any other image</h2>
+  <div class="term" data-cast="docker-run"></div>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">Demystifying containers · recorded</div>
+  <h2 style="margin-bottom:12px">What a runtime does with the image, by hand</h2>
   <div class="term" data-cast="tarballs-runtime"></div>
   <aside class="notes">This is essentially what Charliecloud (ch-image pull → directory) and Apptainer (→ SIF) do: download, flatten, run unprivileged. No overlayfs involved.</aside>
 </section>
 
-<section class="slide with-term">
-  <div class="kicker">docker run · recorded</div>
-  <h2 style="margin-bottom:12px">…and of course with Docker</h2>
-  <div class="term" data-cast="docker-run"></div>
+<section class="slide">
+  <div class="kicker">On HPC systems</div>
+  <h2>The same image on HPC container runtimes</h2>
+  <div class="cols">
+    <div>
+      <table class="t">
+        <tr><th>runtime</th><th>how</th></tr>
+        <tr><td>Apptainer</td><td><code>apptainer build env.sif docker://registry/img:tag</code></td></tr>
+        <tr><td>Enroot</td><td><code>enroot import docker://registry#img:tag</code></td></tr>
+        <tr><td>Charliecloud</td><td><code>ch-image pull registry/img:tag</code></td></tr>
+        <tr><td>Kubernetes, JupyterHub</td><td>containerd: as is</td></tr>
+      </table>
+      <p class="small" style="margin-top:12px">They do what we just did by hand: download the blobs, unpack the layers into one directory, squashfs or SIF, and run it unprivileged. No overlayfs, so no layer limit.</p>
+    </div>
+    <div>
+      <div class="callout small" style="font-size:19px"><b>glibc, again:</b> the <code>lstopo</code> that failed natively on SLES 15 SP6 runs fine in the image, because the <code>ubuntu:26.04</code> base brings its own glibc 2.43.</div>
+      <div class="callout small" style="font-size:19px"><b>Firewalled systems</b>: push from a build host or CI, then pull through a proxy (e.g. an SSH reverse tunnel and <code>https_proxy</code>), or use a file system build cache for fully offline systems.</div>
+    </div>
+  </div>
 </section>
 
 <section class="slide with-term">
@@ -847,31 +874,10 @@ const maxLayerDepth = 125</pre>
   <ul>
     <li><b>Check your runtime first</b>: <code>docker info --format '{{.Driver}}'</code>. On a containerd image store or Podman, 125 is not your limit.</li>
     <li><b>Smaller images</b>: push sub-environments, or only the roots you need (<code>spack buildcache push --tag x mirror spec…</code>)</li>
-    <li><b>Flattening runtimes</b> don't care: <code>apptainer build app.sif docker://…</code>, <code>enroot import docker://…</code>, <code>ch-image pull …</code></li>
+    <li><b>Flattening runtimes</b> (Apptainer, Enroot, Charliecloud) don't have the limit at all</li>
     <li><b>Squash after the fact</b> into one layer (e.g. a <code>FROM … / COPY --from</code> stage), but you lose the per-package dedup</li>
     <li>Fewer packages: prefer externals from the base image for "OS-like" dependencies, e.g. <code>ncurses</code>, <code>openssl</code>, <code>zlib</code>. That's again the externals ↔ base image trade-off.</li>
   </ul>
-</section>
-
-<section class="slide">
-  <div class="kicker">On HPC systems</div>
-  <h2>Running Spack-pushed images where Docker isn't available</h2>
-  <div class="cols">
-    <div>
-      <table class="t">
-        <tr><th>runtime</th><th>how</th></tr>
-        <tr><td>Apptainer</td><td><code>apptainer build env.sif docker://registry/img:tag</code></td></tr>
-        <tr><td>Enroot</td><td><code>enroot import docker://registry#img:tag</code></td></tr>
-        <tr><td>Charliecloud</td><td><code>ch-image pull registry/img:tag</code></td></tr>
-        <tr><td>Kubernetes, JupyterHub</td><td>containerd: as is</td></tr>
-      </table>
-      <p class="small" style="margin-top:12px">All of them unpack the layers themselves. None of them needs <code>docker build</code>.</p>
-    </div>
-    <div>
-      <div class="callout warn small" style="font-size:19px"><b>glibc, again.</b> Built on Ubuntu 26.04 (glibc 2.43): won't run natively on a SLES 15 SP6 host (2.38), but runs fine in an image with an <code>ubuntu:26.04</code> base. Containers move the libc assumption into the <b>base image</b>.</div>
-      <div class="callout small" style="font-size:19px"><b>Firewalled systems</b>: push from a build host or CI, then pull through a proxy (e.g. an SSH reverse tunnel and <code>https_proxy</code>), or use a file system build cache for fully offline systems.</div>
-    </div>
-  </div>
 </section>
 
 <section class="slide">
@@ -926,37 +932,27 @@ const maxLayerDepth = 125</pre>
 
 <section class="slide">
   <div class="kicker">Hands-on · on your own machine</div>
-  <h2>Getting started</h2>
-  <div class="cols w60">
+  <h2>Two shells</h2>
+  <div class="cols">
     <div>
-<pre class="code dark small"><span class="c"># x86_64 host with Docker. The tutorial's docker commands need</span>
-<span class="c"># the host's Docker socket inside the tutorial container:</span>
-$ docker run -it \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    --group-add $(stat -c %g /var/run/docker.sock) \
-    --add-host localhost:host-gateway \
-    ghcr.io/spack/tutorial:carla26
-
-<span class="c"># inside the container</span>
-$ git clone --depth=2 --branch=releases/v1.2 \
-    https://github.com/spack/spack
-$ . spack/share/spack/setup-env.sh
-$ spack mirror add tutorial /mirror
-$ spack buildcache keys --install --trust --yes-to-all</pre>
+      <h3>Shell 1: a local registry</h3>
+<pre class="code dark">$ docker run --rm -p 5000:5000 registry</pre>
+      <p class="small">Leave it running. Any OCI registry works the same way; a local one needs no credentials (<code>oci+http://localhost:5000/…</code>).</p>
     </div>
     <div>
-      <p class="small">Then follow:</p>
-      <p class="small"><code>spack-tutorial.readthedocs.io</code><br>→ <b>Binary Caches Tutorial</b></p>
+      <h3>Shell 2: Spack</h3>
+<pre class="code dark">$ git clone --depth=2 --branch=releases/v1.2 \
+    https://github.com/spack/spack
+$ . spack/share/spack/setup-env.sh</pre>
+      <p class="small">Then follow <b>spack-tutorial.readthedocs.io → Binary Caches Tutorial</b>:</p>
       <ul class="small">
-        <li>julia from a build cache (relocation)</li>
-        <li>local OCI registry on <code>localhost:5000</code></li>
+        <li>install from a build cache (relocation)</li>
+        <li>push to <code>localhost:5000</code></li>
         <li><code>--base-image</code>: why glibc matters</li>
         <li><code>--tag</code>: environments as images</li>
       </ul>
-      <p class="small muted">Binaries are <code>x86_64_v3</code> only. On Apple Silicon you need emulation.</p>
     </div>
   </div>
-  <aside class="notes">The socket mount and --add-host are not in the tutorial's setup page; they come from the tutorial repo's outputs/Makefile, which is how the maintainers generate the outputs.</aside>
 </section>
 
 <!-- ======================================================= WRAP UP -->
@@ -1027,21 +1023,28 @@ $ spack buildcache keys --install --trust --yes-to-all</pre>
       if (players.has(el) || el.classList.contains('missing')) return;
       const data = castData(el.dataset.cast);
       if (!data) return;
+      const cmd = document.createElement('div');
+      cmd.className = 'term-cmd';
+      el.appendChild(cmd);
       const holder = document.createElement('div');
-      holder.style.cssText = 'width:100%;height:100%';
+      holder.className = 'holder';
       el.appendChild(holder);
+      const labels = data.split('\n').filter(l => l.includes(', "m", ')).map(l => JSON.parse(l)[2]);
       const hint = document.createElement('div');
       hint.className = 'term-hint'; hint.textContent = '▶ next / p to play';
       el.appendChild(hint);
       const p = AsciinemaPlayer.create({ data }, holder, {
-        fit: 'both', controls: 'auto', idleTimeLimit: 1.5,
+        fit: 'both', controls: 'auto',
         speed: parseFloat(el.dataset.speed || '1'),
         poster: 'npt:' + (el.dataset.poster || '0:0.6'),
         terminalFontFamily: getComputedStyle(document.documentElement).getPropertyValue('--mono'),
       });
-      const rec = { player: p, state: 'idle', hint };
+      const rec = { player: p, state: 'idle', hint, cmd };
+      const caption = label => { cmd.textContent = label || ''; cmd.classList.toggle('show', !!label); };
+      rec.caption = caption;
       p.addEventListener('play', () => { rec.state = 'playing'; hint.style.display = 'none'; });
-      p.addEventListener('ended', () => { rec.state = 'ended'; });
+      p.addEventListener('marker', e => caption((e.detail || e).label));
+      p.addEventListener('ended', () => { rec.state = 'ended'; caption(labels[labels.length - 1]); });
       players.set(el, rec);
     });
   }
@@ -1079,7 +1082,7 @@ $ spack buildcache keys --install --trust --yes-to-all</pre>
     else { r.player.play(); }
   }
   function restart() {
-    slidePlayers(slides[cur]).forEach(r => { r.player.seek(0); r.player.pause(); r.state = 'idle'; r.hint.style.display = ''; });
+    slidePlayers(slides[cur]).forEach(r => { r.player.seek(0); r.player.pause(); r.state = 'idle'; r.hint.style.display = ''; r.caption(''); });
   }
 
   window.addEventListener('keydown', e => {

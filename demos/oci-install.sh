@@ -6,4 +6,5 @@ run "spack env create -d my-env ~/lrz-demo/envs/hpc/spack.lock"
 run "spack -e my-env mirror add --unsigned hpc-registry oci+http://localhost:5000/hpc"
 run "spack -e my-env config add config:install_tree:root:~/lrz-demo/c"
 run "spack -e my-env install"
+pause
 end

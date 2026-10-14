@@ -11,8 +11,10 @@ followed by the Spack tutorial's binary cache section as hands-on.
   recordings are replaced by static transcripts.
 - `src/slides.html` — slide source; `tools/build.py` inlines player, logo and casts
   (`pip install pyte`, then `python3 tools/build.py`).
-- `casts/` — real terminal recordings (asciinema v2), made with `demos/*.sh` via
-  `demos/record.sh <name> [cols] [rows]`.
+- `casts/` — terminal recordings (asciinema v2), made with `demos/*.sh` via
+  `demos/record.sh <name> [cols] [rows]`. Commands and output are real; `tools/postprocess_cast.py`
+  then shortens long store paths, hashes and digests with `…` for readability, and turns the
+  command markers into asciicast markers that the deck shows as a sticky "current command" caption.
 - `tools/many_layers.py` — builds synthetic images with N layers to probe runtime layer limits.
 - `outline.md` — the talk outline.
 
