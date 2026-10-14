@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sharing Spack Environments</title>
+<style>
+/*@PLAYER_CSS@*/
+</style>
+<style>
+:root {
+  --bg: #fbfaf7;
+  --ink: #1d232b;
+  --muted: #5d6874;
+  --faint: #e7e3da;
+  --panel: #f1eee7;
+  --accent: #1764b8;
+  --accent-soft: #e3edf8;
+  --warn: #c2611f;
+  --warn-soft: #f8e9dc;
+  --good: #2f7d4f;
+  --good-soft: #e1f0e6;
+  --term-bg: #121314;
+  --term-ink: #e6e6e6;
+  --sans: "Inter", "Source Sans 3", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0d0f12; }
+body { font-family: var(--sans); color: var(--ink); overflow: hidden; }
+
+/* ---------- deck layout (screen) ---------- */
+#deck { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: 0 0; }
+.slide {
+  position: absolute; inset: 0; width: 1280px; height: 720px; overflow: hidden;
+  background: var(--bg); padding: 52px 72px 48px; display: none; flex-direction: column;
+}
+.slide.active { display: flex; }
+.slide > .foot {
+  position: absolute; left: 72px; right: 72px; bottom: 16px; display: flex; justify-content: space-between;
+  font-size: 13px; color: var(--muted); letter-spacing: .02em;
+}
+
+/* ---------- typography ---------- */
+h1 { font-size: 54px; line-height: 1.08; margin: 0 0 18px; letter-spacing: -.02em; font-weight: 750; }
+h2 { font-size: 36px; line-height: 1.15; margin: 0 0 22px; letter-spacing: -.01em; font-weight: 700; }
+h3 { font-size: 22px; margin: 0 0 10px; font-weight: 700; }
+.kicker { font-size: 15px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+p, li { font-size: 24px; line-height: 1.38; }
+p { margin: 0 0 14px; }
+ul { margin: 0 0 12px; padding-left: 28px; }
+li { margin: 0 0 8px; }
+li li { font-size: 21px; margin-bottom: 4px; }
+.small, .small li, .small p { font-size: 19px; }
+.muted { color: var(--muted); }
+.lead { font-size: 27px; line-height: 1.4; }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+p code, li code, td code { background: var(--panel); padding: 1px 6px; border-radius: 4px; }
+a { color: var(--accent); }
+b.warn, .warn { color: var(--warn); }
+b.good, .good { color: var(--good); }
+.hl { background: #fff3b0; padding: 0 3px; border-radius: 3px; }
+
+pre.code {
+  font-family: var(--mono); font-size: 17px; line-height: 1.45; background: var(--panel);
+  border-radius: 8px; padding: 14px 18px; margin: 0 0 14px; white-space: pre; overflow: hidden;
+  border-left: 4px solid var(--faint);
+}
+pre.code.dark { background: var(--term-bg); color: var(--term-ink); border-left-color: #333; }
+pre.code .c { color: #8a8f96; }
+pre.code .k { color: var(--accent); font-weight: 700; }
+pre.code .e { color: var(--warn); font-weight: 700; }
+pre.code .g { color: var(--good); font-weight: 700; }
+pre.code.dark .c { color: #7d848c; }
+pre.code.dark .k { color: #8cc4ff; }
+pre.code.dark .e { color: #ffab70; }
+pre.code.dark .g { color: #8ee08f; }
+pre.code.tiny { font-size: 14px; line-height: 1.35; }
+pre.code.small { font-size: 15.5px; line-height: 1.4; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
+.cols.c3 { grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+.cols.w60 { grid-template-columns: 1.5fr 1fr; }
+.cols.w40 { grid-template-columns: 1fr 1.5fr; }
+.grow { flex: 1; min-height: 0; }
+
+.card { background: #fff; border: 1px solid var(--faint); border-radius: 10px; padding: 16px 20px; }
+.card h3 { margin-bottom: 6px; }
+.card p, .card li { font-size: 20px; }
+.card.pro { border-top: 5px solid var(--good); }
+.card.con { border-top: 5px solid var(--warn); }
+.card.acc { border-top: 5px solid var(--accent); }
+
+.callout { border-left: 6px solid var(--accent); background: var(--accent-soft); padding: 12px 18px; border-radius: 0 8px 8px 0; font-size: 23px; line-height: 1.38; margin: 6px 0 14px; }
+.callout.warn { border-left-color: var(--warn); background: var(--warn-soft); color: var(--ink); }
+.callout.good { border-left-color: var(--good); background: var(--good-soft); }
+
+table.t { border-collapse: collapse; width: 100%; font-size: 19px; }
+table.t th, table.t td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--faint); vertical-align: top; }
+table.t th { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+table.t td:first-child { font-weight: 650; }
+
+/* ---------- title / section slides ---------- */
+.slide.title { justify-content: center; background: linear-gradient(135deg, #fbfaf7 0%, #eef3f9 100%); }
+.slide.title .logo svg { height: 64px; width: auto; }
+.slide.title .who { font-size: 24px; color: var(--muted); margin-top: 26px; line-height: 1.5; }
+.slide.section { justify-content: center; background: var(--ink); color: #f4f4f4; }
+.slide.section .num { font-size: 120px; font-weight: 800; color: #3b4a5c; line-height: 1; margin-bottom: 8px; }
+.slide.section h1 { color: #fff; }
+.slide.section p { color: #b9c2cc; font-size: 26px; max-width: 980px; }
+.slide.section > .foot { color: #7d8792; }
+
+/* ---------- spectrum ---------- */
+.spectrum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 6px 0 0; }
+.spectrum .st { background: #fff; border: 1px solid var(--faint); border-radius: 10px; padding: 14px 16px; position: relative; }
+.spectrum .st .n { font-family: var(--mono); font-size: 21px; font-weight: 700; color: var(--accent); }
+.spectrum .st .d { font-size: 17px; color: var(--muted); margin-top: 2px; }
+.spectrum .st.on { outline: 3px solid var(--accent); }
+.spectrum .row { font-size: 16px; margin-top: 10px; line-height: 1.35; }
+.spectrum .row b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.spectrum .row.assume { color: var(--warn); }
+.spectrum .row.ship { color: var(--good); }
+.arrow-bar { display: flex; align-items: center; gap: 12px; font-size: 16px; color: var(--muted); margin: 12px 4px 0; }
+.arrow-bar .line { flex: 1; height: 2px; background: linear-gradient(90deg, var(--accent), var(--warn)); position: relative; }
+.arrow-bar .line::after { content: ""; position: absolute; right: -2px; top: -6px; border-left: 12px solid var(--warn); border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
+
+/* ---------- diagrams ---------- */
+svg.diagram { width: 100%; height: auto; display: block; }
+svg.diagram text { font-family: var(--sans); fill: var(--ink); }
+svg.diagram .mono { font-family: var(--mono); }
+svg.diagram .box { fill: #fff; stroke: #b9b3a6; stroke-width: 1.5; }
+svg.diagram .box.acc { fill: var(--accent-soft); stroke: var(--accent); }
+svg.diagram .box.warn { fill: var(--warn-soft); stroke: var(--warn); }
+svg.diagram .box.good { fill: var(--good-soft); stroke: var(--good); }
+svg.diagram .box.dim { fill: var(--panel); stroke: #cfc9bc; }
+svg.diagram .ln { stroke: #8a8f96; stroke-width: 2; fill: none; }
+svg.diagram .lbl { font-size: 15px; fill: var(--muted); }
+
+/* ---------- terminal recordings ---------- */
+.term { flex: 1; min-height: 0; position: relative; border-radius: 10px; overflow: hidden; background: var(--term-bg); }
+.term .ap-wrapper { width: 100%; height: 100%; }
+.term .ap-player { border-radius: 0; }
+.term .transcript { display: none; }
+.term.missing { display: flex; align-items: center; justify-content: center; }
+.term .transcript-missing { color: #ff9b70; font-family: var(--mono); font-size: 18px; }
+.term-hint { position: absolute; right: 10px; top: 8px; z-index: 5; font-size: 12px; color: #9aa3ad; background: rgba(0,0,0,.35); padding: 2px 8px; border-radius: 10px; pointer-events: none; }
+.slide.with-term { flex-direction: column; }
+.term-cap { font-size: 18px; color: var(--muted); margin: 10px 0 0; }
+
+/* ---------- notes / UI ---------- */
+aside.notes { display: none; }
+#notes {
+  position: fixed; left: 0; right: 0; bottom: 0; max-height: 34vh; overflow: auto; background: rgba(15,17,20,.94);
+  color: #e8e8e8; font: 17px/1.45 var(--sans); padding: 12px 22px; display: none; z-index: 20;
+}
+#notes.show { display: block; }
+#help { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); color: #e8e8e8; background: rgba(15,17,20,.85); padding: 6px 14px; border-radius: 16px; font: 14px var(--sans); z-index: 10; transition: opacity .6s; }
+#help.hide { opacity: 0; pointer-events: none; }
+
+/* ---------- print: one slide per page, static transcripts ---------- */
+@page { size: 1280px 720px; margin: 0; }
+@media print {
+  html, body { background: #fff; height: auto; overflow: visible; }
+  #deck { position: static; transform: none !important; width: auto; height: auto; }
+  .slide { display: flex !important; position: relative; page-break-after: always; break-after: page; }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  #notes, #help, .term-hint { display: none !important; }
+  .term .ap-wrapper { display: none !important; }
+  .term { background: var(--term-bg); padding: 12px 16px; }
+  .term .transcript {
+    display: block; margin: 0; color: var(--term-ink); font-family: var(--mono); white-space: pre;
+    /* fit all lines in the box: computed per transcript via --fs (set by JS) */
+    font-size: var(--fs, 13px); line-height: 1.25;
+  }
+  .term .transcript .elided { color: #9aa3ad; font-style: italic; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================= TITLE -->
+<section class="slide title">
+  <div class="logo"><!--@LOGO@--></div>
+  <h1 style="margin-top:34px">Sharing software environments<br>from <code>spack.yaml</code> to container images</h1>
+  <div class="who">Harmen Stoppels · Spack maintainer<br>Leibniz-Rechenzentrum · 15 October 2026</div>
+  <aside class="notes">Volunteer talk, not on behalf of a company. 90 minutes: ~65 min talk with recorded demos, then hands-on with the Spack tutorial's binary cache section.</aside>
+</section>
+
+<!-- ======================================================= WHAT IS SHARING -->
+<section class="slide">
+  <div class="kicker">Introduction</div>
+  <h2>"Can you send me your environment?"</h2>
+  <div class="cols">
+    <div>
+      <ul>
+        <li>A colleague wants to <b>reproduce</b> your results</li>
+        <li>You move from a <b>laptop or VM</b> to a cluster</li>
+        <li>CI builds software, <b>users</b> run it</li>
+        <li>The same stack on <b>several clusters</b>, or on short-lived cloud clusters rebuilt every week</li>
+        <li>A <b>container</b> for Kubernetes, JupyterHub, Apptainer…</li>
+      </ul>
+    </div>
+    <div>
+      <div class="callout">Each of these means something different by "the environment": a list of packages, exact versions, binaries, or a whole file system.</div>
+      <div class="callout warn">The real question each time:<br><b>what do you assume the other machine already has?</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================= SPECTRUM / AGENDA -->
+<section class="slide">
+  <div class="kicker">The thread through this talk</div>
+  <h2>A spectrum of ways to share</h2>
+  <div class="spectrum">
+    <div class="st"><div class="n">spack.yaml</div><div class="d">intent: abstract specs + config</div>
+      <div class="row ship"><b>ships</b>what you want</div>
+      <div class="row assume"><b>assumes</b>Spack, compilers, externals, build time</div></div>
+    <div class="st"><div class="n">spack.lock</div><div class="d">decisions: the concrete DAG</div>
+      <div class="row ship"><b>ships</b>exact versions, variants, hashes</div>
+      <div class="row assume"><b>assumes</b>the same externals, a compatible target</div></div>
+    <div class="st"><div class="n">build cache</div><div class="d">binaries</div>
+      <div class="row ship"><b>ships</b>compiled, relocatable packages</div>
+      <div class="row assume"><b>assumes</b>Spack, a compatible glibc + CPU, externals</div></div>
+    <div class="st"><div class="n">container image</div><div class="d">binaries + OS user land</div>
+      <div class="row ship"><b>ships</b>everything except the kernel</div>
+      <div class="row assume"><b>assumes</b>a runtime, kernel, drivers, (MPI fabric)</div></div>
+  </div>
+  <div class="arrow-bar"><span>most flexible</span><div class="line"></div><span>fewest assumptions about the target</span></div>
+  <p class="small muted" style="margin-top:18px">① Spack environments and how far they travel · ② container images built from the inside (<code>spack containerize</code>) · ③ container images as archives (<code>spack buildcache push</code>) · ④ hands-on</p>
+  <aside class="notes">Keep coming back to this slide. Every step to the right moves one thing from "assumed on the target" to "shipped with the artifact". The recurring culprit: externals, and glibc is always one.</aside>
+</section>
+
+<!-- ======================================================= PART 1 -->
+<section class="slide section">
+  <div class="num">1</div>
+  <h1>Spack environments<br>and how far they travel</h1>
+  <p>spack.yaml → spack.lock → build caches, and the one external you can never get rid of.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Environments recap</div>
+  <h2>Two files: intent and decisions</h2>
+  <div class="cols">
+    <div>
+      <h3><code>spack.yaml</code>: what you ask for</h3>
+<pre class="code">spack:
+  specs:
+  - hdf5+mpi
+  - mpich
+  - py-h5py
+  view: false
+  concretizer:
+    unify: true</pre>
+      <p class="small">Abstract specs + configuration. Short, human-edited, goes into git.</p>
+    </div>
+    <div>
+      <h3><code>spack.lock</code>: what you got</h3>
+<pre class="code small">{"roots": [{"hash": "jceyzq7…", "spec": "hdf5+mpi"}, …],
+ "concrete_specs": {
+   "jceyzq7…": {"name": "hdf5", "version": "1.14.6",
+     "arch": {"target": "x86_64_v3", "os": "ubuntu26.04"},
+     "dependencies": [{"name": "cmake", "hash": "a4wqsr7…"},
+                      {"name": "mpich", …}, …]},
+   …57 nodes…}}</pre>
+      <p class="small">The fully concrete DAG: every version, variant, target and dependency, keyed by hash. Generated by <code>spack concretize</code>.</p>
+    </div>
+  </div>
+<pre class="code dark">$ spack env create myenv spack.yaml   <span class="c"># re-concretize on this machine</span>
+$ spack env create myenv spack.lock   <span class="c"># reproduce exactly this DAG</span></pre>
+</section>
+
+<section class="slide">
+  <div class="kicker">Sharing spack.yaml</div>
+  <h2>Portable, but you get a different answer</h2>
+  <div class="cols">
+    <div>
+      <p>On another machine, re-concretization uses <i>that</i> machine's:</p>
+      <ul>
+        <li>Spack version and <b>package repository</b> commit</li>
+        <li>compilers and <b>externals</b> (<code>packages.yaml</code>)</li>
+        <li>OS, CPU target, available binaries (reuse)</li>
+      </ul>
+      <p>So the result is "the same software, appropriate for this machine". Usually that's what you want.</p>
+    </div>
+    <div>
+      <p class="small">Pin what matters, in the environment itself:</p>
+<pre class="code small">spack:
+  specs: [hdf5+mpi, mpich, py-h5py]
+  repos:
+    builtin:
+      commit: 6427933d…  <span class="c"># or tag/branch</span>
+  packages:
+    all:
+      require:
+      - target=x86_64_v3 <span class="c"># don't tune for my laptop</span>
+    hdf5:
+      require: "@1.14"</pre>
+      <div class="callout warn small" style="font-size:19px">Good for "same software". Not good for "exactly what I ran last month".</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">Sharing spack.lock · recorded</div>
+  <h2 style="margin-bottom:12px">The lock file has nodes that Spack did not build</h2>
+  <div class="term" data-cast="env-lock"></div>
+  <aside class="notes">[e] marks externals. gcc and glibc are nodes in the DAG with a prefix of /usr. They contribute to the hash. Copy the lock to another machine: does /usr there have gcc 15.2 and glibc 2.43?</aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Sharing spack.lock</div>
+  <h2>Exact, until the machine leaks in</h2>
+  <div class="cols w60">
+    <div>
+      <p>Externals are part of the DAG and of every dependent's hash. They record a <b>prefix on this machine</b>.</p>
+      <p>On the target they may not exist, live elsewhere, or have another version.</p>
+      <p class="small muted">Typical externals on HPC systems:</p>
+      <table class="t">
+        <tr><td>compiler</td><td>system / vendor gcc, oneAPI, nvhpc</td></tr>
+        <tr><td>libc</td><td><b class="warn">glibc: always</b></td></tr>
+        <tr><td>MPI</td><td>vendor MPI tuned for the fabric</td></tr>
+        <tr><td>GPU</td><td>CUDA, ROCm, Level Zero drivers</td></tr>
+        <tr><td>scheduler</td><td>Slurm, PMIx, libfabric/UCX providers</td></tr>
+      </table>
+    </div>
+    <div>
+<pre class="code small">packages:
+  mpi:
+    buildable: false
+  intel-oneapi-mpi:
+    externals:
+    - spec: intel-oneapi-mpi@2021.14
+      prefix: /opt/intel/oneapi
+  slurm:
+    externals:
+    - spec: slurm@24.05
+      prefix: /usr</pre>
+      <div class="callout">Externals are the explicit list of <b>"assumed on the target"</b>.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">libc</div>
+  <h2>glibc is the one external you can't avoid</h2>
+  <div class="cols">
+    <div>
+      <ul>
+        <li>Since Spack v1.0, libc is an <b>explicit node</b> in the DAG: <code>[e] glibc@2.43</code></li>
+        <li>Binaries link against symbol versions such as <code>GLIBC_2.38</code>. They run on a glibc that is <b>at least as new</b>.</li>
+        <li>The concretizer only <b>reuses</b> a binary if it is libc-compatible with the host <span class="muted small">(<code>solver/libc_compatibility.lp</code>)</span></li>
+      </ul>
+      <div class="callout"><b>Build on the oldest glibc you need to support.</b></div>
+    </div>
+    <div>
+      <table class="t">
+        <tr><th>system</th><th>glibc</th></tr>
+        <tr><td>SLES 15 SP3–SP5</td><td>2.31</td></tr>
+        <tr><td>SLES 15 SP6–SP7</td><td>2.38</td></tr>
+        <tr><td>RHEL / Rocky 8</td><td>2.28</td></tr>
+        <tr><td>RHEL / Rocky 9</td><td>2.34</td></tr>
+        <tr><td>Ubuntu 24.04</td><td>2.39</td></tr>
+        <tr><td>Ubuntu 26.04 (my laptop)</td><td>2.43</td></tr>
+      </table>
+      <p class="small" style="margin-top:14px">The same applies to the <b>CPU target</b>: <code>target=zen4</code> binaries need a Zen 4. For shared binaries use a generic level such as <code>x86_64_v3</code>.</p>
+    </div>
+  </div>
+  <aside class="notes">A laptop on Ubuntu 26.04 builds binaries that will not run on a SLES 15 cluster. Containers move this assumption into the base image (part 3).</aside>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">libc · recorded</div>
+  <h2 style="margin-bottom:12px">What does a binary actually require?</h2>
+  <div class="term" data-cast="glibc"></div>
+  <aside class="notes">The required version is often lower than the build host's glibc, but Spack conservatively assumes the build host's version.</aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Moving the bits</div>
+  <h2>Build caches</h2>
+  <div class="cols">
+    <div>
+<pre class="code dark">$ spack mirror add --unsigned mycache file:///shared/cache
+$ spack buildcache push --update-index mycache
+<span class="c"># elsewhere: same mirror config + spack.lock</span>
+$ spack install       <span class="c"># fetch binaries, no builds</span></pre>
+      <ul class="small">
+        <li>One tarball per package (+ spec metadata), on a file system, S3, HTTP, or an <b>OCI registry</b></li>
+        <li><code>--update-index</code> rebuilds the index used for <b>reuse</b> by the concretizer</li>
+        <li>Signed by default (<code>spack gpg</code>); <code>--unsigned</code> for trusted locations</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Relocation</h3>
+      <p class="small">Binaries embed absolute paths (RPATHs, scripts, config files). On install, Spack rewrites them to the new prefix. Strings in binaries can only <b>shrink</b>, so build with a padded install root:</p>
+<pre class="code small">config:
+  install_tree:
+    root: /opt/spack
+    padded_length: 128</pre>
+      <div class="callout good small" style="font-size:19px">Lock file + build cache = <b>the same binaries</b>, installed by Spack, on a compatible host.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">Build caches · recorded</div>
+  <h2 style="margin-bottom:12px">Push on one machine, install from the lock file on another</h2>
+  <div class="term" data-cast="buildcache-fs"></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Patterns</div>
+  <h2>Keeping environments shareable</h2>
+  <div class="cols">
+    <div>
+      <h3>Separate "what" from "where"</h3>
+<pre class="code small">spack:
+  specs: [hdf5+mpi, mpich, py-h5py]
+  include:
+  - path: ./site/cluster-a.yaml
+    when: hostname.startswith("login")
+  - path: ./site/laptop.yaml
+    when: platform == "darwin"</pre>
+      <p class="small">Site specifics (externals, compilers, mirrors, install root) go in included site scopes, not in <code>spack.yaml</code>.</p>
+    </div>
+    <div>
+      <h3>What to keep external</h3>
+      <ul class="small">
+        <li><b class="good">Build it</b> when it's cheap and the host version doesn't matter: cmake, python, zlib, openblas…</li>
+        <li><b class="warn">Keep external</b> when it must match the host: MPI tuned for the fabric, GPU drivers, Slurm/PMIx</li>
+        <li>Fewer externals means more portable lock files and more reusable binaries.</li>
+      </ul>
+      <div class="callout warn small" style="font-size:19px">Containers do <b>not</b> solve the "must match the host" category either. More on that later.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Context</div>
+  <h2>Other points on the same spectrum</h2>
+  <div class="cols c3">
+    <div class="card acc"><h3>CVMFS-style stacks (EESSI)</h3><p>Ship their <b>own libc</b> in a compatibility layer, so the glibc external disappears. The cost is a dedicated file system and client on every node.</p></div>
+    <div class="card acc"><h3>Conda / pixi</h3><p>Ship everything <b>except glibc</b> (<code>__glibc</code> virtual package). The same assumption Spack makes.</p></div>
+    <div class="card acc"><h3>Spack on top</h3><p>A site stack as an <b>upstream</b>, a user environment on top, a build cache shared between clusters.</p></div>
+  </div>
+  <div class="callout good" style="margin-top:22px">Short-lived clusters (cloud VMs, CI runners, test systems) recreate the same environment over and over. A shared build cache turns <i>"rebuild the stack"</i> into <i>"download binaries"</i>.</div>
+</section>
+
+<!-- ======================================================= PART 2 -->
+<section class="slide section">
+  <div class="num">2</div>
+  <h1>Container images,<br>built from the inside</h1>
+  <p>What an image really is, and how <code>spack containerize</code> produces one with a Dockerfile.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">What is a container image?</div>
+  <h2>An index, a manifest, a config, and tarballs</h2>
+  <svg class="diagram" viewBox="0 0 1136 430" role="img" aria-label="OCI image structure">
+    <rect class="box dim" x="10" y="150" width="200" height="110" rx="10"/>
+    <text x="110" y="190" text-anchor="middle" font-weight="700" font-size="20">index</text>
+    <text x="110" y="216" text-anchor="middle" class="lbl">one manifest</text>
+    <text x="110" y="236" text-anchor="middle" class="lbl">per platform</text>
+    <path class="ln" d="M210 205 H300"/>
+    <rect class="box acc" x="300" y="150" width="230" height="110" rx="10"/>
+    <text x="415" y="190" text-anchor="middle" font-weight="700" font-size="20">manifest</text>
+    <text x="415" y="216" text-anchor="middle" class="lbl">digest of config +</text>
+    <text x="415" y="236" text-anchor="middle" class="lbl">ordered list of layer digests</text>
+    <path class="ln" d="M530 190 C580 190 570 70 620 70"/>
+    <path class="ln" d="M530 225 C580 225 570 300 620 300"/>
+    <rect class="box" x="620" y="20" width="500" height="110" rx="10"/>
+    <text x="640" y="54" font-weight="700" font-size="20">config (JSON)</text>
+    <text x="640" y="82" class="mono" font-size="16">Env: ["PATH=…"], Entrypoint, Cmd, User</text>
+    <text x="640" y="108" class="mono" font-size="16">rootfs.diff_ids: [sha256 of each layer tar]</text>
+    <rect class="box good" x="620" y="190" width="500" height="44" rx="8"/>
+    <text x="640" y="218" class="mono" font-size="16">layer 1: usr/ etc/ … (tar.gz)</text>
+    <rect class="box good" x="620" y="244" width="500" height="44" rx="8"/>
+    <text x="640" y="272" class="mono" font-size="16">layer 2: tar.gz</text>
+    <rect class="box good" x="620" y="298" width="500" height="44" rx="8"/>
+    <text x="640" y="326" class="mono" font-size="16">layer n: tar.gz (may contain whiteouts)</text>
+    <text x="620" y="380" class="lbl">Everything is content-addressed: blobs are named by their sha256.</text>
+    <text x="620" y="404" class="lbl">A registry is just an HTTP API to put and get blobs and manifests.</text>
+  </svg>
+  <p class="small">A runtime downloads the blobs, <b>unpacks the tarballs in order</b> (overlayfs, or flattened into a directory, squashfs or SIF) and starts a process with the config's environment.</p>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">What is a container image? · recorded</div>
+  <h2 style="margin-bottom:12px">It's just files</h2>
+  <div class="term" data-cast="image-anatomy"></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">How a Dockerfile produces an image</div>
+  <h2>Run a command, snapshot the diff, append a tarball</h2>
+  <div class="cols w40">
+<pre class="code">FROM ubuntu:24.04
+RUN apt-get update &amp;&amp; \
+    apt-get install -y gcc
+COPY app.c /src/
+RUN gcc -o /usr/bin/app /src/app.c</pre>
+    <svg class="diagram" viewBox="0 0 640 330" role="img" aria-label="Dockerfile layers">
+      <rect class="box dim" x="20" y="260" width="600" height="50" rx="8"/><text x="40" y="292" class="mono" font-size="16">ubuntu:24.04 layers</text>
+      <rect class="box" x="20" y="195" width="600" height="50" rx="8"/><text x="40" y="227" class="mono" font-size="16">diff after RUN apt-get …</text>
+      <rect class="box" x="20" y="130" width="600" height="50" rx="8"/><text x="40" y="162" class="mono" font-size="16">diff after COPY</text>
+      <rect class="box" x="20" y="65" width="600" height="50" rx="8"/><text x="40" y="97" class="mono" font-size="16">diff after RUN gcc …</text>
+      <text x="20" y="40" class="lbl">each layer only makes sense on top of the previous ones</text>
+    </svg>
+  </div>
+  <ul>
+    <li>Each step runs <b>inside</b> a container of the previous state. The changed files become a new layer.</li>
+    <li>Layer cache: change one line and <b>everything after it</b> is rebuilt.</li>
+    <li>This is <i>one way</i> to produce the archive, not what an image <i>is</i>.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <div class="kicker">spack containerize</div>
+  <h2>Generate a Dockerfile from an environment</h2>
+  <div class="cols">
+    <div>
+<pre class="code">spack:
+  specs:
+  - hdf5+mpi
+  - mpich
+  - py-h5py
+  packages:
+    all:
+      require: [target=x86_64_v3]
+  <span class="k">container:</span>
+    <span class="k">format: docker</span>    <span class="c"># or singularity</span>
+    <span class="k">images:</span>
+      <span class="k">os: ubuntu:24.04</span>
+      <span class="k">spack: "1.2"</span></pre>
+<pre class="code dark">$ spack containerize &gt; Dockerfile
+$ docker build -t hpc-env .</pre>
+    </div>
+    <div>
+      <ul class="small">
+        <li><code>images:</code> either an OS + Spack version (official <code>spack/ubuntu-noble:1.2</code> builder images), or custom <code>build</code> / <code>final</code> images, e.g. an NVIDIA CUDA base with CUDA as an external</li>
+        <li><code>os_packages:</code> distro packages for the build or final stage</li>
+        <li><code>strip</code>, <code>labels</code>, <code>depfile: true</code> (parallel <code>make</code> install)</li>
+        <li><code>format: singularity</code> writes a <code>.def</code> file</li>
+        <li>Jinja2 template extension for anything else</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">spack containerize · generated (trimmed)</div>
+  <h2>A multi-stage build</h2>
+  <div class="cols w60">
+<pre class="code tiny"><span class="c"># Build stage with Spack pre-installed and ready to be used</span>
+<span class="k">FROM spack/ubuntu-noble:1.2 AS builder</span>
+
+RUN mkdir -p /opt/spack-environment &amp;&amp; set -o noclobber \
+&amp;&amp;  (echo spack: \
+&amp;&amp;   echo '  specs:' \
+&amp;&amp;   echo '  - hdf5+mpi' \
+     …
+&amp;&amp;   echo '  config:' \
+&amp;&amp;   echo '    install_tree:' \
+&amp;&amp;   echo '      root: /opt/software' \
+&amp;&amp;   echo '  view: /opt/views/view') &gt; /opt/spack-environment/spack.yaml
+
+<span class="e">RUN cd /opt/spack-environment &amp;&amp; spack env activate . &amp;&amp; \
+    spack install --fail-fast &amp;&amp; spack gc -y</span>
+
+RUN find -L /opt/views/view/* -type f … | xargs strip
+RUN cd /opt/spack-environment &amp;&amp; \
+    spack env activate --sh -d . &gt; activate.sh
+
+<span class="c"># Bare OS image to run the installed executables</span>
+<span class="k">FROM ubuntu:24.04</span>
+COPY --from=builder /opt/spack-environment /opt/spack-environment
+COPY --from=builder /opt/software /opt/software
+COPY --from=builder /opt/views /opt/views
+RUN { echo '#!/bin/sh' &amp;&amp; echo '.' /opt/spack-environment/activate.sh \
+      &amp;&amp; echo 'exec "$@"'; } &gt; /entrypoint.sh &amp;&amp; chmod a+x /entrypoint.sh
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "/bin/bash" ]</pre>
+    <div>
+      <ul class="small">
+        <li>The builder image provides Spack, compilers and the same OS as the final stage, so <b>glibc matches by construction</b></li>
+        <li>Note: it ships <code>spack.yaml</code>, not <code>spack.lock</code>. It <b>concretizes inside the build</b>.</li>
+        <li>One <code>RUN</code> step installs <b>everything</b>, so it becomes one big layer</li>
+        <li>The final stage copies <code>/opt/software</code> and adds an entrypoint that activates the environment</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">spack containerize</div>
+  <h2>Trade-offs</h2>
+  <div class="cols">
+    <div class="card pro">
+      <h3 class="good">Pros</h3>
+      <ul class="small">
+        <li>The build environment <b>is</b> the base image: externals and glibc are under control. The part 1 problem largely disappears.</li>
+        <li>Self-contained, reviewable recipe; any CI or container builder understands it</li>
+        <li>Singularity/Apptainer definition files for HPC</li>
+        <li>Add OS packages, files, users. Spack not needed on the target.</li>
+      </ul>
+    </div>
+    <div class="card con">
+      <h3 class="warn">Cons</h3>
+      <ul class="small">
+        <li>Needs a builder (Docker, Podman, Buildah, Apptainer), often <b>root or fakeroot</b>: usually not on an HPC login node</li>
+        <li>Everything in one <code>RUN</code>: any change to <code>spack.yaml</code> rebuilds <b>everything</b>; a failure throws away all finished dependencies</li>
+        <li>Debugging a failed build inside a container build is painful</li>
+        <li>One fat layer: no sharing between overlapping images</li>
+        <li>Binaries built in there don't help anyone else</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">spack containerize</div>
+  <h2>Hybrid: give the Dockerfile a build cache</h2>
+  <div class="cols">
+    <div>
+<pre class="code small">spack:
+  specs: [hdf5+mpi, mpich, py-h5py]
+  mirrors:
+    ci-cache:
+      url: oci://ghcr.io/myorg/buildcache
+      signed: false
+      access_pair:
+        id_variable: REGISTRY_USER
+        secret_variable: REGISTRY_TOKEN
+  container:
+    images: {os: ubuntu:24.04, spack: "1.2"}
+    template: container/WithCache</pre>
+<pre class="code tiny">{% extends "container/Dockerfile" %}
+{% block build_stage %}
+{{ super() }}
+<span class="c"># publish what was just built for the next run</span>
+RUN --mount=type=secret,id=token,env=REGISTRY_TOKEN \
+    cd /opt/spack-environment &amp;&amp; \
+    REGISTRY_USER=ci spack -e . buildcache push ci-cache
+{% endblock %}</pre>
+    </div>
+    <div>
+      <ul class="small">
+        <li><code>spack install</code> inside the build now <b>fetches</b> most packages instead of compiling them</li>
+        <li>Pushing at the end makes the next image build fast too</li>
+        <li>Still one fat layer, still needs a builder</li>
+      </ul>
+      <div class="callout">But if the binaries are already in a registry… why run <code>docker build</code> at all?</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================= PART 3 -->
+<section class="slide section">
+  <div class="num">3</div>
+  <h1>Container images<br>as archives</h1>
+  <p><code>spack buildcache push --base-image</code>: no Dockerfile, no daemon, no root.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">The key observation</div>
+  <h2>A Spack build cache tarball is already a layer</h2>
+  <div class="cols w60">
+    <div>
+      <p>Spack's tarball of one package stores paths as the absolute install prefix <b>without the leading <code>/</code></b>:</p>
+<pre class="code small">$ tar -tzf …/blobs/sha256/1c9d… | head -3
+home/bot/lrz-demo/store/linux-x86_64_v3/zlib-ng-2.3.3-g72d7…/
+home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d7…/include/zlib.h
+home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d7…/lib/libz.so.1</pre>
+      <p>Extracted at <code>/</code>, it lands exactly where it was built. That's what a layer is.</p>
+    </div>
+    <svg class="diagram" viewBox="0 0 460 360" role="img" aria-label="Same blob two consumers">
+      <rect class="box good" x="120" y="20" width="220" height="70" rx="10"/>
+      <text x="230" y="50" text-anchor="middle" font-weight="700" font-size="18">one blob per package</text>
+      <text x="230" y="74" text-anchor="middle" class="lbl">in an OCI registry</text>
+      <path class="ln" d="M190 90 C190 140 100 140 100 190"/>
+      <path class="ln" d="M270 90 C270 140 360 140 360 190"/>
+      <rect class="box acc" x="10" y="190" width="200" height="150" rx="10"/>
+      <text x="110" y="222" text-anchor="middle" font-weight="700" font-size="18">spack install</text>
+      <text x="110" y="250" text-anchor="middle" class="lbl">build cache:</text>
+      <text x="110" y="272" text-anchor="middle" class="lbl">spec in image config,</text>
+      <text x="110" y="294" text-anchor="middle" class="lbl">relocated on install</text>
+      <rect class="box warn" x="250" y="190" width="200" height="150" rx="10"/>
+      <text x="350" y="222" text-anchor="middle" font-weight="700" font-size="18">docker run</text>
+      <text x="350" y="250" text-anchor="middle" class="lbl">container image:</text>
+      <text x="350" y="272" text-anchor="middle" class="lbl">same paths as on the</text>
+      <text x="350" y="294" text-anchor="middle" class="lbl">build host, no relocation</text>
+    </svg>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">spack buildcache push</div>
+  <h2>Archive what is installed</h2>
+<pre class="code dark">$ spack -e . buildcache push \
+      --base-image ubuntu:26.04 \          <span class="c"># provides glibc + the rest of the OS</span>
+      --tag hpc-env \                      <span class="c"># one image for all roots + runtime deps</span>
+      oci://ghcr.io/myorg/buildcache       <span class="c"># or oci+http://localhost:5000/… for local tests</span></pre>
+  <div class="cols">
+    <ul class="small">
+      <li>Input: <b>installed</b> specs (built on the host, or in CI, where debugging is easy)</li>
+      <li>Output: per-package tags <code>name-version-hash.spack</code> <b>and</b> a runnable <code>:hpc-env</code></li>
+      <li>Only HTTP requests to a registry: no Docker, no daemon, <b>no root</b></li>
+    </ul>
+    <ul class="small">
+      <li>Credentials via env vars: <code>spack mirror add --oci-username-variable U --oci-password-variable P name oci://…</code></li>
+      <li>Without <code>--base-image</code> you get a "distroless" image: a fine build cache, but not runnable</li>
+    </ul>
+  </div>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">spack buildcache push · recorded</div>
+  <h2 style="margin-bottom:12px">Push an environment, then push a bigger one</h2>
+  <div class="term" data-cast="push-oci"></div>
+  <aside class="notes">Second push: only the packages not yet in the registry are uploaded. The other layers are already there under their digest.</aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">What push assembles · from the implementation</div>
+  <h2>Base image layers + one layer per package</h2>
+  <div class="cols">
+    <svg class="diagram" viewBox="0 0 540 380" role="img" aria-label="Spack image layers">
+      <rect class="box dim" x="20" y="300" width="500" height="60" rx="8"/><text x="40" y="336" class="mono" font-size="16">ubuntu:26.04 layers (copied over)</text>
+      <rect class="box good" x="20" y="240" width="160" height="48" rx="8"/><text x="34" y="270" class="mono" font-size="14">zlib-ng</text>
+      <rect class="box good" x="190" y="240" width="160" height="48" rx="8"/><text x="204" y="270" class="mono" font-size="14">gcc-runtime</text>
+      <rect class="box good" x="360" y="240" width="160" height="48" rx="8"/><text x="374" y="270" class="mono" font-size="14">hwloc</text>
+      <rect class="box good" x="20" y="182" width="160" height="48" rx="8"/><text x="34" y="212" class="mono" font-size="14">libfabric</text>
+      <rect class="box good" x="190" y="182" width="160" height="48" rx="8"/><text x="204" y="212" class="mono" font-size="14">mpich</text>
+      <rect class="box good" x="360" y="182" width="160" height="48" rx="8"/><text x="374" y="212" class="mono" font-size="14">python</text>
+      <rect class="box good" x="20" y="124" width="160" height="48" rx="8"/><text x="34" y="154" class="mono" font-size="14">hdf5</text>
+      <rect class="box good" x="190" y="124" width="160" height="48" rx="8"/><text x="204" y="154" class="mono" font-size="14">py-numpy</text>
+      <rect class="box good" x="360" y="124" width="160" height="48" rx="8"/><text x="374" y="154" class="mono" font-size="14">py-h5py</text>
+      <rect class="box warn" x="20" y="40" width="500" height="60" rx="8" stroke-dasharray="6 4"/><text x="40" y="66" font-size="16">externals (gcc, glibc): <tspan font-weight="700">not pushed</tspan></text><text x="40" y="88" class="lbl">→ the base image must provide them</text>
+    </svg>
+    <ul class="small">
+      <li><b>link + run</b> dependencies only, in topological order</li>
+      <li>Layers are <b>independent</b>: no file in one layer overwrites another, so any subset is a valid image</li>
+      <li>The config's <code>Env</code> comes from Spack's own environment modifications (<code>PATH</code>, …). <b>No view.</b></li>
+      <li>The full spec JSON goes in the image config, so <code>spack install</code> can use it</li>
+      <li>Matches the base image's manifest media type (Docker v2 vs OCI). <span class="muted">Apptainer refuses to mix them.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">Inspecting the result · recorded</div>
+  <h2 style="margin-bottom:12px">Layers, environment, and sharing between tags</h2>
+  <div class="term" data-cast="inspect-oci"></div>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">An image is an archive · recorded</div>
+  <h2 style="margin-bottom:12px">A container runtime in three commands: skopeo, tar, bwrap</h2>
+  <div class="term" data-cast="tarballs-runtime"></div>
+  <aside class="notes">This is essentially what Charliecloud (ch-image pull → directory) and Apptainer (→ SIF) do: download, flatten, run unprivileged. No overlayfs involved.</aside>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">docker run · recorded</div>
+  <h2 style="margin-bottom:12px">…and of course with Docker</h2>
+  <div class="term" data-cast="docker-run"></div>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">Same registry, other purpose · recorded</div>
+  <h2 style="margin-bottom:12px">The image is also a build cache</h2>
+  <div class="term" data-cast="oci-install"></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Consequences</div>
+  <h2>Archiving instead of building</h2>
+  <div class="cols">
+    <div class="card pro">
+      <h3 class="good">You get</h3>
+      <ul class="small">
+        <li><b>Deduplication</b>: images that share dependencies share layers, in the registry and in the runtime's local store</li>
+        <li><b>Incremental</b> pushes: only changed packages are uploaded</li>
+        <li>Build where debugging is easy; <b>no privileges</b> needed to produce images</li>
+        <li>One artifact serves both <code>spack install</code> and <code>docker run</code></li>
+      </ul>
+    </div>
+    <div class="card con">
+      <h3 class="warn">You inherit</h3>
+      <ul class="small">
+        <li>The <b>host build</b>: glibc and CPU target of the build machine. Pick the base image accordingly.</li>
+        <li>The <b>install paths</b>: <code>/home/me/spack/opt/…</code> ends up in the image. Use a neutral <code>install_tree: root: /opt/spack</code>.</li>
+        <li><b>No view, no entrypoint</b>: <code>PATH</code> lists every package prefix</li>
+        <li>One architecture per tag (no multi-arch index)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Limitation</div>
+  <h2>How many layers can an image have?</h2>
+  <div class="cols w60">
+    <div>
+      <p>Overlay-based runtimes mount every layer as an overlayfs <code>lowerdir</code>. Spack makes <b>one layer per package</b>, and large environments easily reach 150+ packages.</p>
+      <table class="t">
+        <tr><th>runtime / storage</th><th>max layers</th></tr>
+        <tr><td>Docker, classic <code>overlay2</code> driver</td><td><b class="warn">125</b></td></tr>
+        <tr><td>Docker ≥ 29 (fresh install): containerd image store</td><td>499</td></tr>
+        <tr><td>Podman (containers/storage)</td><td>≈ 500</td></tr>
+        <tr><td>Apptainer, Enroot, Charliecloud</td><td>no limit: <b class="good">flatten</b></td></tr>
+      </table>
+    </div>
+    <div>
+<pre class="code tiny"><span class="c">// moby: daemon/internal/layer/layer_store.go</span>
+<span class="c">// maxLayerDepth represents the maximum number of
+// layers which can be chained together. 125 was
+// chosen to account for the 127 max in some
+// graphdrivers plus the 2 additional layers
+// used to create a rwlayer.</span>
+const maxLayerDepth = 125</pre>
+      <p class="small">The kernel's own overlayfs limit is about 500 lower layers, which is what containerd and Podman run into.</p>
+      <p class="small muted">Measured with rootless Docker 29.8 on Linux 7.0, see the next slide.</p>
+    </div>
+  </div>
+  <aside class="notes">Spack docs currently say 128; the precise number for overlay2 is 125 including the base image layers. Docker 29 made the containerd image store the default for new installs; upgraded installs keep overlay2.</aside>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">Layer limit · recorded</div>
+  <h2 style="margin-bottom:8px">Classic <code>overlay2</code>: 125 layers</h2>
+  <div class="term" data-cast="layer-limit-overlay2"></div>
+  <h2 style="margin:14px 0 8px">containerd image store: 499 layers</h2>
+  <div class="term" data-cast="layer-limit-containerd"></div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Layer limit</div>
+  <h2>Working around it</h2>
+  <ul>
+    <li><b>Check your runtime first</b>: <code>docker info --format '{{.Driver}}'</code>. On a containerd image store or Podman, 125 is not your limit.</li>
+    <li><b>Smaller images</b>: push sub-environments, or only the roots you need (<code>spack buildcache push --tag x mirror spec…</code>)</li>
+    <li><b>Flattening runtimes</b> don't care: <code>apptainer build app.sif docker://…</code>, <code>enroot import docker://…</code>, <code>ch-image pull …</code></li>
+    <li><b>Squash after the fact</b> into one layer (e.g. a <code>FROM … / COPY --from</code> stage), but you lose the per-package dedup</li>
+    <li>Fewer packages: prefer externals from the base image for "OS-like" dependencies, e.g. <code>ncurses</code>, <code>openssl</code>, <code>zlib</code>. That's again the externals ↔ base image trade-off.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <div class="kicker">On HPC systems</div>
+  <h2>Running Spack-pushed images where Docker isn't available</h2>
+  <div class="cols">
+    <div>
+      <table class="t">
+        <tr><th>runtime</th><th>how</th></tr>
+        <tr><td>Apptainer</td><td><code>apptainer build env.sif docker://registry/img:tag</code></td></tr>
+        <tr><td>Enroot</td><td><code>enroot import docker://registry#img:tag</code></td></tr>
+        <tr><td>Charliecloud</td><td><code>ch-image pull registry/img:tag</code></td></tr>
+        <tr><td>Kubernetes, JupyterHub</td><td>containerd: as is</td></tr>
+      </table>
+      <p class="small" style="margin-top:12px">All of them unpack the layers themselves. None of them needs <code>docker build</code>.</p>
+    </div>
+    <div>
+      <div class="callout warn small" style="font-size:19px"><b>glibc, again.</b> Built on Ubuntu 26.04 (glibc 2.43): won't run natively on a SLES 15 SP6 host (2.38), but runs fine in an image with an <code>ubuntu:26.04</code> base. Containers move the libc assumption into the <b>base image</b>.</div>
+      <div class="callout small" style="font-size:19px"><b>Firewalled systems</b>: push from a build host or CI, then pull through a proxy (e.g. an SSH reverse tunnel and <code>https_proxy</code>), or use a file system build cache for fully offline systems.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Aside</div>
+  <h2>MPI and GPUs: what containers don't solve</h2>
+  <div class="cols">
+    <div>
+      <p>The container's MPI must talk to the <b>host's</b> launcher (Slurm/PMIx) and fabric (libfabric/UCX providers, drivers).</p>
+      <ul class="small">
+        <li><b>Hybrid</b>: an MPI inside the image that is compatible with the host's process manager and fabric, launched with <code>srun</code> / <code>mpiexec</code> from outside</li>
+        <li><b>Bind</b>: mount the host's MPI over the container's. Requires ABI compatibility: the MPICH family (MPICH, Intel MPI, Cray MPICH) shares an ABI; MPI 5.0 standardizes one.</li>
+        <li>GPU drivers always come from the host (<code>--nv</code>, CDI, …)</li>
+      </ul>
+    </div>
+    <div>
+      <div class="callout">With Spack this is the <b>externals</b> story again. Make MPI an external that the base image provides (a site base image with the system MPI stack). <code>buildcache push</code> skips externals, so the image uses whatever the base provides.</div>
+<pre class="code small">packages:
+  mpi:
+    require: intel-oneapi-mpi
+  intel-oneapi-mpi:
+    buildable: false
+    externals:
+    - spec: intel-oneapi-mpi@2021.14
+      prefix: /opt/intel/oneapi  <span class="c"># in the base image</span></pre>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Choosing</div>
+  <h2>containerize vs. buildcache push</h2>
+  <table class="t">
+    <tr><th></th><th><code>spack containerize</code></th><th><code>spack buildcache push --base-image</code></th></tr>
+    <tr><td>Builds happen</td><td>inside a container build</td><td>on the host or in CI, before</td></tr>
+    <tr><td>Needs</td><td>Docker / Podman / Apptainer, often root</td><td>a registry; no privileges</td></tr>
+    <tr><td>glibc / externals</td><td><b class="good">controlled</b> by the builder image</td><td><b class="warn">inherited</b> from the host; pick a compatible base</td></tr>
+    <tr><td>Layers</td><td>one fat layer</td><td>one per package, deduplicated</td></tr>
+    <tr><td>Change one package</td><td>rebuild (or re-fetch) everything</td><td>push one layer</td></tr>
+    <tr><td>Customization</td><td>anything a Dockerfile can do</td><td>add a thin <code>FROM spack-image</code> Dockerfile</td></tr>
+    <tr><td>Doubles as build cache</td><td>no (unless you add one)</td><td><b class="good">yes</b></td></tr>
+    <tr><td>Limits</td><td>build time</td><td>layer count (125 for Docker's overlay2)</td></tr>
+  </table>
+  <div class="callout good" style="margin-top:16px">Build where debugging is easy, <b>archive</b> into images, and keep Dockerfiles for what really has to run inside.</div>
+</section>
+
+<!-- ======================================================= PART 4 -->
+<section class="slide section">
+  <div class="num">4</div>
+  <h1>Hands-on</h1>
+  <p>Spack tutorial: <b>Binary Caches</b>. Install from a build cache, run a local registry, push, and turn an environment into a runnable image.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Hands-on · on your own machine</div>
+  <h2>Getting started</h2>
+  <div class="cols w60">
+    <div>
+<pre class="code dark small"><span class="c"># x86_64 host with Docker. The tutorial's docker commands need</span>
+<span class="c"># the host's Docker socket inside the tutorial container:</span>
+$ docker run -it \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    --group-add $(stat -c %g /var/run/docker.sock) \
+    --add-host localhost:host-gateway \
+    ghcr.io/spack/tutorial:carla26
+
+<span class="c"># inside the container</span>
+$ git clone --depth=2 --branch=releases/v1.2 \
+    https://github.com/spack/spack
+$ . spack/share/spack/setup-env.sh
+$ spack mirror add tutorial /mirror
+$ spack buildcache keys --install --trust --yes-to-all</pre>
+    </div>
+    <div>
+      <p class="small">Then follow:</p>
+      <p class="small"><code>spack-tutorial.readthedocs.io</code><br>→ <b>Binary Caches Tutorial</b></p>
+      <ul class="small">
+        <li>julia from a build cache (relocation)</li>
+        <li>local OCI registry on <code>localhost:5000</code></li>
+        <li><code>--base-image</code>: why glibc matters</li>
+        <li><code>--tag</code>: environments as images</li>
+      </ul>
+      <p class="small muted">Binaries are <code>x86_64_v3</code> only. On Apple Silicon you need emulation.</p>
+    </div>
+  </div>
+  <aside class="notes">The socket mount and --add-host are not in the tutorial's setup page; they come from the tutorial repo's outputs/Makefile, which is how the maintainers generate the outputs.</aside>
+</section>
+
+<!-- ======================================================= WRAP UP -->
+<section class="slide">
+  <div class="kicker">Summary</div>
+  <h2>What do you assume the other machine has?</h2>
+  <div class="spectrum">
+    <div class="st"><div class="n">spack.yaml</div><div class="row">Re-concretizes: the right build for <i>that</i> machine. Pin the repo and target.</div></div>
+    <div class="st"><div class="n">spack.lock</div><div class="row">Exact DAG. Externals (<b>glibc</b>, compilers, MPI) must match.</div></div>
+    <div class="st"><div class="n">build cache</div><div class="row">Same binaries anywhere with a compatible glibc + CPU. Pad the install root.</div></div>
+    <div class="st"><div class="n">container image</div><div class="row">Externals come from the <b>base image</b>. Built inside (<code>containerize</code>) or archived (<code>buildcache push</code>).</div></div>
+  </div>
+  <div class="callout" style="margin-top:26px">A container image is an <b>archive</b>: a manifest, a JSON config and tarballs. Spack's build cache already produces those tarballs, so one registry serves both <code>spack install</code> and <code>docker run</code>.</div>
+  <p class="small muted" style="margin-top:10px">Docs: spack.readthedocs.io → <i>Container Images</i>, <i>Build Caches</i>, <i>Environments</i> · Tutorial: spack-tutorial.readthedocs.io · Chat: slack.spack.io</p>
+</section>
+
+<section class="slide title">
+  <h1>Thank you!</h1>
+  <div class="who">Questions?<br><span class="small">Harmen Stoppels · github.com/haampie</span></div>
+</section>
+
+</div>
+
+<div id="notes"></div>
+<div id="help">← → / PgUp PgDn navigate · p play/pause · r restart · n notes · f fullscreen · ? help</div>
+
+<!--@CASTS@-->
+<script>
+/*@PLAYER_JS@*/
+</script>
+<script>
+(function () {
+  const deck = document.getElementById('deck');
+  const slides = Array.from(deck.querySelectorAll('.slide'));
+  const help = document.getElementById('help');
+  setTimeout(() => help.classList.add('hide'), 4000);
+  const notesEl = document.getElementById('notes');
+  let cur = 0;
+
+  // footer on regular slides
+  slides.forEach((s, i) => {
+    if (s.classList.contains('title')) return;
+    const f = document.createElement('div');
+    f.className = 'foot';
+    f.innerHTML = '<span>Sharing software environments · LRZ 2026</span><span>' + (i + 1) + ' / ' + slides.length + '</span>';
+    s.appendChild(f);
+  });
+
+  function fit() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.transform = 'scale(' + s + ') translate(-50%, -50%)';
+    deck.style.transformOrigin = '0 0';
+    deck.style.left = '50%'; deck.style.top = '50%';
+    deck.style.transform = 'translate(-50%, -50%) scale(' + s + ')';
+    deck.style.transformOrigin = 'center center';
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  // ---- terminal recordings ----
+  const players = new Map(); // element -> {player, state}
+  function castData(name) {
+    const el = document.getElementById('cast-' + name);
+    return el ? el.textContent.replace(/<\\\//g, '</') : null;
+  }
+  function ensurePlayers(slide) {
+    slide.querySelectorAll('.term[data-cast]').forEach(el => {
+      if (players.has(el) || el.classList.contains('missing')) return;
+      const data = castData(el.dataset.cast);
+      if (!data) return;
+      const holder = document.createElement('div');
+      holder.style.cssText = 'width:100%;height:100%';
+      el.appendChild(holder);
+      const hint = document.createElement('div');
+      hint.className = 'term-hint'; hint.textContent = '▶ next / p to play';
+      el.appendChild(hint);
+      const p = AsciinemaPlayer.create({ data }, holder, {
+        fit: 'both', controls: 'auto', idleTimeLimit: 1.5,
+        speed: parseFloat(el.dataset.speed || '1'),
+        poster: 'npt:' + (el.dataset.poster || '0:0.6'),
+        terminalFontFamily: getComputedStyle(document.documentElement).getPropertyValue('--mono'),
+      });
+      const rec = { player: p, state: 'idle', hint };
+      p.addEventListener('play', () => { rec.state = 'playing'; hint.style.display = 'none'; });
+      p.addEventListener('ended', () => { rec.state = 'ended'; });
+      players.set(el, rec);
+    });
+  }
+  function slidePlayers(slide) {
+    return Array.from(slide.querySelectorAll('.term[data-cast]')).map(el => players.get(el)).filter(Boolean);
+  }
+
+  function show(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides[cur].classList.remove('active');
+    slidePlayers(slides[cur]).forEach(r => { try { r.player.pause(); } catch (e) {} });
+    cur = i;
+    slides[cur].classList.add('active');
+    ensurePlayers(slides[cur]);
+    const n = slides[cur].querySelector('aside.notes');
+    notesEl.innerHTML = n ? n.innerHTML : '<i>no notes</i>';
+    if (location.hash !== '#' + (cur + 1)) history.replaceState(null, '', '#' + (cur + 1));
+  }
+
+  // "next" steps through recordings on the slide before moving on:
+  // idle → play; playing → jump to end; ended → next recording or next slide
+  function next() {
+    for (const r of slidePlayers(slides[cur])) {
+      if (r.state === 'idle') { r.player.play(); return; }
+      if (r.state === 'playing') { r.player.seek('100%'); r.state = 'ended'; return; }
+    }
+    show(cur + 1);
+  }
+  function prev() { show(cur - 1); }
+  function toggle() {
+    const rs = slidePlayers(slides[cur]);
+    const r = rs.find(r => r.state === 'playing') || rs.find(r => r.state !== 'ended') || rs[0];
+    if (!r) return;
+    if (r.state === 'playing') { r.player.pause(); r.state = 'paused'; }
+    else { r.player.play(); }
+  }
+  function restart() {
+    slidePlayers(slides[cur]).forEach(r => { r.player.seek(0); r.player.pause(); r.state = 'idle'; r.hint.style.display = ''; });
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const k = e.key;
+    let handled = true;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ' || k === 'Enter') next();
+    else if (k === 'ArrowLeft' || k === 'PageUp' || k === 'Backspace') prev();
+    else if (k === 'ArrowDown') show(cur + 1);
+    else if (k === 'ArrowUp') show(cur - 1);
+    else if (k === 'Home') show(0);
+    else if (k === 'End') show(slides.length - 1);
+    else if (k === 'p' || k === 'P') toggle();
+    else if (k === 'r' || k === 'R') restart();
+    else if (k === 'n' || k === 'N') notesEl.classList.toggle('show');
+    else if (k === '?') help.classList.toggle('hide');
+    else if (k === 'f' || k === 'F') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+    else handled = false;
+    if (handled) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
+  // print: size each transcript's font so that all lines fit its box
+  function sizeTranscripts() {
+    document.querySelectorAll('.term .transcript').forEach(pre => {
+      const term = pre.parentElement;
+      const slide = term.closest('.slide');
+      const wasActive = slide.classList.contains('active');
+      slide.style.display = 'flex';
+      const h = term.clientHeight - 24, w = term.clientWidth - 32;
+      if (!wasActive) slide.style.display = '';
+      const lines = parseInt(term.dataset.lines || '30'), cols = parseInt(term.dataset.width || '100');
+      const fs = Math.max(6, Math.min(16, h / (lines * 1.25), w / (cols * 0.61)));
+      pre.style.setProperty('--fs', fs.toFixed(2) + 'px');
+    });
+  }
+  window.addEventListener('beforeprint', sizeTranscripts);
+  if (window.matchMedia) window.matchMedia('print').addEventListener('change', m => { if (m.matches) sizeTranscripts(); });
+
+  const start = parseInt((location.hash || '#1').slice(1)) - 1;
+  slides[0].classList.add('active');
+  show(isNaN(start) ? 0 : start);
+  sizeTranscripts();
+})();
+</script>
+</body>
+</html>
