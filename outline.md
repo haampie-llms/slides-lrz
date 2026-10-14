@@ -167,7 +167,10 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
   strict about mixing the two.
 - Every spec gets a tag `name-version-hash.spack`, and `--tag` names the whole set
   (environment).
-- Live: `skopeo inspect` of a Spack-pushed image, showing the layer list next to `spack find -l`.
+- Recorded: push hdf5 (12 specs) with `--tag hdf5`, then `docker run` it (`h5dump`, and the
+  `lstopo` that failed on SLES 15 SP6). Then push the whole environment: 32 specs, 20 uploads,
+  12 skipped because they are already in the registry.
+- Recorded: `skopeo inspect` of the result: tags, layers and the config's `Env`.
 
 **3.3 Consequences**
 - Deduplication: images that share dependencies share layers, in the registry and in a

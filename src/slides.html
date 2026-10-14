@@ -751,9 +751,9 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 
 <section class="slide with-term">
   <div class="kicker">spack buildcache push · recorded</div>
-  <h2 style="margin-bottom:12px">Push an environment, then push a bigger one</h2>
-  <div class="term" data-cast="push-oci"></div>
-  <aside class="notes">Second push: only the packages not yet in the registry are uploaded. The other layers are already there under their digest.</aside>
+  <h2 style="margin-bottom:12px">Push installed packages, then <code>docker run</code> them</h2>
+  <div class="term" data-cast="push-run"></div>
+  <aside class="notes">hdf5 and its 11 runtime dependencies, pushed on top of ubuntu:26.04. docker run pulls it like any other image. lstopo is the same binary that failed natively on SLES 15 SP6 because of glibc.</aside>
 </section>
 
 <section class="slide">
@@ -784,16 +784,18 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 </section>
 
 <section class="slide with-term">
+  <div class="kicker">Sharing layers · recorded</div>
+  <h2 style="margin-bottom:12px">Push the whole environment: 32 specs, 20 uploads</h2>
+  <div class="term" data-cast="push-oci"></div>
+  <aside class="notes">The 12 packages of the hdf5 image are already in the registry under their digest, so only the 20 new ones are uploaded. Both images reference the same blobs.</aside>
+</section>
+
+<section class="slide with-term">
   <div class="kicker">Inspecting the result · recorded</div>
   <h2 style="margin-bottom:12px">Tags, layers and environment</h2>
   <div class="term" data-cast="inspect-oci"></div>
 </section>
 
-<section class="slide with-term">
-  <div class="kicker">docker run · recorded</div>
-  <h2 style="margin-bottom:12px">Run it like any other image</h2>
-  <div class="term" data-cast="docker-run"></div>
-</section>
 
 <section class="slide with-term">
   <div class="kicker">Demystifying containers · recorded</div>
