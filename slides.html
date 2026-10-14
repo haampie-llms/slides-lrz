@@ -1354,100 +1354,22 @@ $ spack install --cache-only</pre>
 <section class="slide section">
   <div class="num">2</div>
   <h1>Container images,<br>using <code>spack containerize</code></h1>
-  <p>And an attempt to "demystify" containers.</p>
+  <p>Starting from what you know: Dockerfiles.</p>
 </section>
 
 <section class="slide">
-  <div class="kicker">What is a container image?</div>
-  <h2>An index, a manifest, a config, and tarballs</h2>
-  <svg class="diagram" viewBox="0 0 1136 430" role="img" aria-label="OCI image structure">
-    <rect class="box dim" x="10" y="150" width="200" height="110" rx="10"/>
-    <text x="110" y="190" text-anchor="middle" font-weight="700" font-size="20">index</text>
-    <text x="110" y="216" text-anchor="middle" class="lbl">one manifest</text>
-    <text x="110" y="236" text-anchor="middle" class="lbl">per platform</text>
-    <path class="ln" d="M210 205 H300"/>
-    <rect class="box acc" x="300" y="150" width="230" height="110" rx="10"/>
-    <text x="415" y="190" text-anchor="middle" font-weight="700" font-size="20">manifest</text>
-    <text x="415" y="216" text-anchor="middle" class="lbl">digest of config +</text>
-    <text x="415" y="236" text-anchor="middle" class="lbl">ordered list of layer digests</text>
-    <path class="ln" d="M530 190 C580 190 570 70 620 70"/>
-    <path class="ln" d="M530 225 C580 225 570 300 620 300"/>
-    <rect class="box" x="620" y="20" width="500" height="110" rx="10"/>
-    <text x="640" y="54" font-weight="700" font-size="20">config (JSON)</text>
-    <text x="640" y="82" class="mono" font-size="16">Env: ["PATH=…"], Entrypoint, Cmd, User</text>
-    <text x="640" y="108" class="mono" font-size="16">rootfs.diff_ids: [sha256 of each layer tar]</text>
-    <rect class="box good" x="620" y="190" width="500" height="44" rx="8"/>
-    <text x="640" y="218" class="mono" font-size="16">layer 1: usr/ etc/ … (tar.gz)</text>
-    <rect class="box good" x="620" y="244" width="500" height="44" rx="8"/>
-    <text x="640" y="272" class="mono" font-size="16">layer 2: tar.gz</text>
-    <rect class="box good" x="620" y="298" width="500" height="44" rx="8"/>
-    <text x="640" y="326" class="mono" font-size="16">layer n: tar.gz (may contain whiteouts)</text>
-    <text x="620" y="380" class="lbl">Everything is content-addressed: blobs are named by their sha256.</text>
-    <text x="620" y="404" class="lbl">A registry is just an HTTP API to put and get blobs and manifests.</text>
-  </svg>
-  <p class="small">A runtime downloads the blobs, <b>unpacks the tarballs in order</b> (overlayfs, or flattened into a directory, squashfs or SIF) and starts a process with the config's environment.</p>
-</section>
-
-<section class="slide with-term">
-  <div class="kicker">What is a container image? · recorded</div>
-  <h2 style="margin-bottom:12px">It's just files</h2>
-  <div class="term" data-cast="image-anatomy" data-poster="1.93" data-lines="46" data-width="110"><pre class="transcript" style="--lines:46;--cols:110"><span style="color:#6cc070;font-weight:700">laptop</span> $ # copy an image from Docker Hub into a plain directory (OCI layout)
-<span style="color:#6cc070;font-weight:700">laptop</span> $ skopeo copy -q docker://ubuntu:26.04 oci:ubuntu:26.04
-<span style="color:#6cc070;font-weight:700">laptop</span> $ find ubuntu -type f
-ubuntu/index.json
-ubuntu/blobs/sha256/88a381d5b5ee…
-ubuntu/blobs/sha256/06ad70e463aa…
-ubuntu/blobs/sha256/4e07a0f12b2c…
-ubuntu/blobs/sha256/6e92c4fd8dfd…
-ubuntu/oci-layout
-<span style="color:#6cc070;font-weight:700">laptop</span> $ # index.json points to the manifest, which points to config + layers
-<span style="color:#6cc070;font-weight:700">laptop</span> $ cd ubuntu/blobs/sha256
-<span style="color:#6cc070;font-weight:700">laptop</span> $ manifest=$(jq -r &#x27;.manifests[0].digest[7:]&#x27; ../../index.json)
-<span style="color:#6cc070;font-weight:700">laptop</span> $ jq &#x27;del(.annotations, .layers[].annotations)&#x27; $manifest
-<span style="font-weight:700">{</span>
-  <span style="color:#6aa6e8;font-weight:700">&quot;schemaVersion&quot;</span><span style="font-weight:700">:</span> 2<span style="font-weight:700">,</span>
-<span class="elided">⋮ 5 lines omitted ⋮</span>
-  <span style="font-weight:700">},</span>
-  <span style="color:#6aa6e8;font-weight:700">&quot;layers&quot;</span><span style="font-weight:700">:</span> <span style="font-weight:700">[</span>
-    <span style="font-weight:700">{</span>
-      <span style="color:#6aa6e8;font-weight:700">&quot;mediaType&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;</span><span style="font-weight:700">,</span>
-      <span style="color:#6aa6e8;font-weight:700">&quot;digest&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;sha256:4e07a0f12b2c…&quot;</span><span style="font-weight:700">,</span>
-      <span style="color:#6aa6e8;font-weight:700">&quot;size&quot;</span><span style="font-weight:700">:</span> 41837521
-    <span style="font-weight:700">},</span>
-    <span style="font-weight:700">{</span>
-      <span style="color:#6aa6e8;font-weight:700">&quot;mediaType&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;</span><span style="font-weight:700">,</span>
-      <span style="color:#6aa6e8;font-weight:700">&quot;digest&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;sha256:06ad70e463aa…&quot;</span><span style="font-weight:700">,</span>
-      <span style="color:#6aa6e8;font-weight:700">&quot;size&quot;</span><span style="font-weight:700">:</span> 388
-    <span style="font-weight:700">}</span>
-  <span style="font-weight:700">]</span>
-<span style="font-weight:700">}</span>
-<span style="color:#6cc070;font-weight:700">laptop</span> $ # the config is just JSON
-<span style="color:#6cc070;font-weight:700">laptop</span> $ jq &#x27;.config | {Env, Cmd}&#x27; $(jq -r &#x27;.config.digest[7:]&#x27; $manifest)
-<span style="font-weight:700">{</span>
-  <span style="color:#6aa6e8;font-weight:700">&quot;Env&quot;</span><span style="font-weight:700">:</span> <span style="font-weight:700">[</span>
-    <span style="color:#6cc070">&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;</span>
-  <span style="font-weight:700">],</span>
-  <span style="color:#6aa6e8;font-weight:700">&quot;Cmd&quot;</span><span style="font-weight:700">:</span> <span style="font-weight:700">[</span>
-    <span style="color:#6cc070">&quot;/bin/bash&quot;</span>
-  <span style="font-weight:700">]</span>
-<span style="font-weight:700">}</span>
-<span style="color:#6cc070;font-weight:700">laptop</span> $ # a layer is just a tarball
-<span style="color:#6cc070;font-weight:700">laptop</span> $ tar -tzf $(jq -r &#x27;.layers[0].digest[7:]&#x27; $manifest) | grep -E &#x27;^(usr/bin/bash|usr/lib/x86_64-linux-gn
-u/libc.so.6)$&#x27;
-usr/bin/bash
-usr/lib/x86_64-linux-gnu/libc.so.6
-<span style="color:#6cc070;font-weight:700">laptop</span> $</pre></div>
-</section>
-
-<section class="slide">
-  <div class="kicker">How a Dockerfile produces an image</div>
-  <h2>Run a command, snapshot the diff, append a tarball</h2>
+  <div class="kicker">What you know</div>
+  <h2>A Dockerfile: run a command, snapshot the diff, add a layer</h2>
   <div class="cols w40">
+    <div>
 <pre class="code">FROM ubuntu:24.04
 RUN apt-get update &amp;&amp; \
     apt-get install -y gcc
 COPY app.c /src/
 RUN gcc -o /usr/bin/app /src/app.c</pre>
+<pre class="code dark">$ docker build -t myorg/app:1.0 .
+$ docker push myorg/app:1.0</pre>
+    </div>
     <svg class="diagram" viewBox="0 0 640 330" role="img" aria-label="Dockerfile layers">
       <rect class="box dim" x="20" y="260" width="600" height="50" rx="8"/><text x="40" y="292" class="mono" font-size="16">ubuntu:24.04 layers</text>
       <rect class="box" x="20" y="195" width="600" height="50" rx="8"/><text x="40" y="227" class="mono" font-size="16">diff after RUN apt-get …</text>
@@ -1459,9 +1381,11 @@ RUN gcc -o /usr/bin/app /src/app.c</pre>
   <ul>
     <li>Each step runs <b>inside</b> a container of the previous state. The changed files become a new layer.</li>
     <li>Layer cache: change one line and <b>everything after it</b> is rebuilt.</li>
-    <li>This is <i>one way</i> to produce the archive, not what an image <i>is</i>.</li>
+    <li>The tag names the result, <code>docker push</code> uploads it to a registry. What is behind a tag: part 3.</li>
   </ul>
+  <aside class="notes">Familiar ground for everyone. Keep the two points that matter later: layers are diffs stacked in order, and a change invalidates everything after it.</aside>
 </section>
+
 
 <section class="slide">
   <div class="kicker">spack containerize</div>
@@ -1607,7 +1531,96 @@ RUN --mount=type=secret,id=token,env=REGISTRY_TOKEN \
 <section class="slide section">
   <div class="num">3</div>
   <h1>Container images<br>as archives</h1>
-  <p><code>spack buildcache push --base-image</code>: no Dockerfile, no daemon, no root.</p>
+  <p>An attempt to "demystify" containers, and <code>spack buildcache push --base-image</code>: no Dockerfile, no daemon, no root.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">What is behind a tag?</div>
+  <h2>A manifest, a config, and tarballs</h2>
+  <svg class="diagram" viewBox="0 0 1136 430" role="img" aria-label="OCI image structure">
+    <rect class="box warn" x="10" y="160" width="160" height="90" rx="10"/>
+    <text x="90" y="196" text-anchor="middle" font-weight="700" font-size="20">tag</text>
+    <text x="90" y="224" text-anchor="middle" class="mono" font-size="15">ubuntu:26.04</text>
+    <path class="ln" d="M170 205 H200"/>
+    <rect class="box dim" x="200" y="150" width="170" height="110" rx="10"/>
+    <text x="285" y="190" text-anchor="middle" font-weight="700" font-size="20">index</text>
+    <text x="285" y="216" text-anchor="middle" class="lbl">one manifest</text>
+    <text x="285" y="236" text-anchor="middle" class="lbl">per platform</text>
+    <path class="ln" d="M370 205 H400"/>
+    <rect class="box acc" x="400" y="150" width="210" height="110" rx="10"/>
+    <text x="505" y="190" text-anchor="middle" font-weight="700" font-size="20">manifest</text>
+    <text x="505" y="216" text-anchor="middle" class="lbl">config digest +</text>
+    <text x="505" y="236" text-anchor="middle" class="lbl">list of layer digests</text>
+    <path class="ln" d="M610 190 C640 190 620 70 650 70"/>
+    <path class="ln" d="M610 225 C640 225 620 300 650 300"/>
+    <rect class="box" x="650" y="20" width="476" height="110" rx="10"/>
+    <text x="670" y="54" font-weight="700" font-size="20">config (JSON)</text>
+    <text x="670" y="82" class="mono" font-size="16">Env: ["PATH=…"], Entrypoint, Cmd, User</text>
+    <text x="670" y="108" class="mono" font-size="16">rootfs.diff_ids: [sha256 of each layer]</text>
+    <rect class="box good" x="650" y="190" width="476" height="44" rx="8"/>
+    <text x="670" y="218" class="mono" font-size="16">layer 1: usr/ etc/ … (tar.gz)</text>
+    <rect class="box good" x="650" y="244" width="476" height="44" rx="8"/>
+    <text x="670" y="272" class="mono" font-size="16">layer 2: tar.gz</text>
+    <rect class="box good" x="650" y="298" width="476" height="44" rx="8"/>
+    <text x="670" y="326" class="mono" font-size="16">layer n: tar.gz (may contain whiteouts)</text>
+    <text x="10" y="390" class="lbl">A tag is the only mutable name. Everything else is content-addressed: blobs are named by their sha256.</text>
+    <text x="10" y="414" class="lbl">A registry is just an HTTP API to put and get blobs and manifests, and to point tags at them.</text>
+  </svg>
+  <ul class="small">
+    <li><code>docker pull</code>: resolve the tag, fetch the manifest and blobs, <b>unpack the tarballs in order</b>, start a process with the config's environment</li>
+    <li><code>docker push</code>: upload the blobs, then the manifest, then point the tag at it. <b>None of this needs Docker.</b></li>
+  </ul>
+</section>
+
+<section class="slide with-term">
+  <div class="kicker">What is behind a tag? · recorded</div>
+  <h2 style="margin-bottom:12px">It's just files</h2>
+  <div class="term" data-cast="image-anatomy" data-poster="1.93" data-lines="46" data-width="110"><pre class="transcript" style="--lines:46;--cols:110"><span style="color:#6cc070;font-weight:700">laptop</span> $ # copy an image from Docker Hub into a plain directory (OCI layout)
+<span style="color:#6cc070;font-weight:700">laptop</span> $ skopeo copy -q docker://ubuntu:26.04 oci:ubuntu:26.04
+<span style="color:#6cc070;font-weight:700">laptop</span> $ find ubuntu -type f
+ubuntu/index.json
+ubuntu/blobs/sha256/88a381d5b5ee…
+ubuntu/blobs/sha256/06ad70e463aa…
+ubuntu/blobs/sha256/4e07a0f12b2c…
+ubuntu/blobs/sha256/6e92c4fd8dfd…
+ubuntu/oci-layout
+<span style="color:#6cc070;font-weight:700">laptop</span> $ # index.json points to the manifest, which points to config + layers
+<span style="color:#6cc070;font-weight:700">laptop</span> $ cd ubuntu/blobs/sha256
+<span style="color:#6cc070;font-weight:700">laptop</span> $ manifest=$(jq -r &#x27;.manifests[0].digest[7:]&#x27; ../../index.json)
+<span style="color:#6cc070;font-weight:700">laptop</span> $ jq &#x27;del(.annotations, .layers[].annotations)&#x27; $manifest
+<span style="font-weight:700">{</span>
+  <span style="color:#6aa6e8;font-weight:700">&quot;schemaVersion&quot;</span><span style="font-weight:700">:</span> 2<span style="font-weight:700">,</span>
+<span class="elided">⋮ 5 lines omitted ⋮</span>
+  <span style="font-weight:700">},</span>
+  <span style="color:#6aa6e8;font-weight:700">&quot;layers&quot;</span><span style="font-weight:700">:</span> <span style="font-weight:700">[</span>
+    <span style="font-weight:700">{</span>
+      <span style="color:#6aa6e8;font-weight:700">&quot;mediaType&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;</span><span style="font-weight:700">,</span>
+      <span style="color:#6aa6e8;font-weight:700">&quot;digest&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;sha256:4e07a0f12b2c…&quot;</span><span style="font-weight:700">,</span>
+      <span style="color:#6aa6e8;font-weight:700">&quot;size&quot;</span><span style="font-weight:700">:</span> 41837521
+    <span style="font-weight:700">},</span>
+    <span style="font-weight:700">{</span>
+      <span style="color:#6aa6e8;font-weight:700">&quot;mediaType&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;application/vnd.oci.image.layer.v1.tar+gzip&quot;</span><span style="font-weight:700">,</span>
+      <span style="color:#6aa6e8;font-weight:700">&quot;digest&quot;</span><span style="font-weight:700">:</span> <span style="color:#6cc070">&quot;sha256:06ad70e463aa…&quot;</span><span style="font-weight:700">,</span>
+      <span style="color:#6aa6e8;font-weight:700">&quot;size&quot;</span><span style="font-weight:700">:</span> 388
+    <span style="font-weight:700">}</span>
+  <span style="font-weight:700">]</span>
+<span style="font-weight:700">}</span>
+<span style="color:#6cc070;font-weight:700">laptop</span> $ # the config is just JSON
+<span style="color:#6cc070;font-weight:700">laptop</span> $ jq &#x27;.config | {Env, Cmd}&#x27; $(jq -r &#x27;.config.digest[7:]&#x27; $manifest)
+<span style="font-weight:700">{</span>
+  <span style="color:#6aa6e8;font-weight:700">&quot;Env&quot;</span><span style="font-weight:700">:</span> <span style="font-weight:700">[</span>
+    <span style="color:#6cc070">&quot;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&quot;</span>
+  <span style="font-weight:700">],</span>
+  <span style="color:#6aa6e8;font-weight:700">&quot;Cmd&quot;</span><span style="font-weight:700">:</span> <span style="font-weight:700">[</span>
+    <span style="color:#6cc070">&quot;/bin/bash&quot;</span>
+  <span style="font-weight:700">]</span>
+<span style="font-weight:700">}</span>
+<span style="color:#6cc070;font-weight:700">laptop</span> $ # a layer is just a tarball
+<span style="color:#6cc070;font-weight:700">laptop</span> $ tar -tzf $(jq -r &#x27;.layers[0].digest[7:]&#x27; $manifest) | grep -E &#x27;^(usr/bin/bash|usr/lib/x86_64-linux-gn
+u/libc.so.6)$&#x27;
+usr/bin/bash
+usr/lib/x86_64-linux-gnu/libc.so.6
+<span style="color:#6cc070;font-weight:700">laptop</span> $</pre></div>
 </section>
 
 <section class="slide">
@@ -1615,13 +1628,13 @@ RUN --mount=type=secret,id=token,env=REGISTRY_TOKEN \
   <h2>A Spack build cache tarball is already a layer</h2>
   <div class="cols w60">
     <div>
-      <p>Spack's build cache tarball of a package contains its files <b>at their install prefix</b>:</p>
+      <p>A layer is a tarball that gets unpacked at <code>/</code>. Spack's build cache tarball of a package contains its files <b>at their install prefix</b>:</p>
 <pre class="code tiny">$ curl -s localhost:5000/v2/hpc/blobs/sha256:829c… | tar -tz
 home/bot/lrz-demo/store/linux-x86_64_v3/zlib-ng-2.3.3-g72d…/
 home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/include/zlib.h
 home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 …</pre>
-      <p>Unpack it on top of a base image and the package is exactly where it was built. <b>That's all a layer is.</b></p>
+      <p>Unpack it on top of a base image and the package is exactly where it was built. <b>A build cache is one manifest away from being an image.</b></p>
     </div>
     <svg class="diagram" viewBox="0 0 460 360" role="img" aria-label="Same blob two consumers">
       <rect class="box good" x="120" y="20" width="220" height="70" rx="10"/>
@@ -1734,7 +1747,7 @@ hpc-registry hdf5
     </svg>
     <ul class="small">
       <li><b>link + run</b> dependencies only, in topological order</li>
-      <li>Layers are <b>independent</b>: no file in one layer overwrites another, so any subset is a valid image</li>
+      <li>Layers are <b>independent</b>, unlike a Dockerfile's: no file in one layer overwrites another, so any subset is a valid image</li>
       <li>The config's <code>Env</code> comes from Spack's own environment modifications (<code>PATH</code>, …). <b>No view.</b></li>
       <li>The full spec JSON goes in the image config, so <code>spack install</code> can use it</li>
       <li>Matches the base image's manifest media type (Docker v2 vs OCI). <span class="muted">Apptainer refuses to mix them.</span></li>

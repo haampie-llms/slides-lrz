@@ -94,14 +94,12 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
 
 ## 2. Containers from the inside out: `spack containerize` (≈20 min)
 
-**2.1 What a container image actually is (the foundation for parts 2 and 3)**
-- Image index → manifest → config (Env, Entrypoint, `rootfs.diff_ids`) and a list of layer
-  tarballs. That is all.
-- Live: `skopeo inspect --raw docker://ubuntu:24.04 | jq`, then `skopeo inspect --config`.
-- A runtime unpacks the tarballs, stacks them (overlayfs, or flattened into a squashfs or
-  SIF), and runs a process with the config's environment.
-- A `Dockerfile` is one way to *produce* such an archive: run a command in a container,
-  snapshot the diff as a tarball, append it to the manifest. It is not the only way.
+**2.1 Starting from what people know: Dockerfiles**
+- Each `RUN`/`COPY` step runs in a container of the previous state; the diff becomes a new
+  layer, and each layer only makes sense on top of the previous ones.
+- Layer cache: change one line and everything after it is rebuilt.
+- `docker build -t` names the result, `docker push` uploads it. What is behind a tag is
+  part 3.
 
 **2.2 `spack containerize`**
 - Add a `container:` section to `spack.yaml` and run `spack containerize > Dockerfile`, or
@@ -132,6 +130,15 @@ Second thread, set up in part 2 and paid off in part 3: **a container image is j
   `RUN --mount=type=cache`), so most of the "build" becomes fetching binaries.
 
 ## 3. Containers as an archive: `spack buildcache push --base-image` (≈20 min)
+
+**3.0 What is behind a tag (the motivation for `buildcache push`)**
+- Tag → index → manifest → config (Env, Entrypoint, `rootfs.diff_ids`) and a list of layer
+  tarballs. A tag is the only mutable name; everything else is content-addressed.
+- A registry is an HTTP API for blobs, manifests and tags. `docker pull` resolves the tag,
+  fetches blobs and unpacks the tarballs in order; `docker push` uploads blobs, then the
+  manifest, then sets the tag. None of this needs Docker.
+- Recorded: `skopeo copy docker://ubuntu:26.04 oci:…`, then index → manifest → config → a layer
+  is a tarball.
 
 **3.1 The key observation**
 - A Spack build cache tarball of one package is already a valid OCI layer: entries are the
