@@ -2165,7 +2165,7 @@ $ . spack/share/spack/setup-env.sh</pre>
 <section class="slide section">
   <div class="num">+</div>
   <h1>What's new in Spack</h1>
-  <p>v1.2 came out on 21 June 2026 (the hands-on uses <code>releases/v1.2</code>). v1.3 is planned for November 2026.</p>
+  <p>v1.2 came out on 21 June 2026<br>v1.3 is planned for November 2026.</p>
 </section>
 
 <section class="slide">
@@ -2173,15 +2173,15 @@ $ . spack/share/spack/setup-env.sh</pre>
   <h2>Highlights of v1.2</h2>
   <div class="cols c3">
     <div class="card acc"><h3>New installer (default)</h3>
-      <p>Runs independent builds in parallel, with one jobserver shared by all of them. New TUI: <code>v</code> follows a build's log, <code>n</code>/<code>p</code> switches to the next/previous one.</p></div>
+      <p>Runs independent builds in parallel under a jobserver for dynamic parallelism. New TUI: <code>v</code> follows a build's log, <code>n</code>/<code>p</code> switches to the next/previous one.</p></div>
     <div class="card acc"><h3>Concretization groups</h3>
-      <p>Named groups of specs in one environment. Each group has its own preferences and can <code>needs:</code> other groups.</p></div>
+      <p>Groups of specs in an environment. Each group can specify local config and can <code>needs:</code> other groups.</p></div>
     <div class="card acc"><h3>Concretization cache</h3>
       <p>On by default: after <code>spack spec hdf5</code>, a <code>spack install hdf5</code> doesn't solve again.</p></div>
     <div class="card acc"><h3>SBOMs</h3>
       <p>Every install gets an SPDX 2.3 SBOM in <code>$prefix/.spack/sbom</code>.</p></div>
     <div class="card acc"><h3><code>spack isolate</code></h3>
-      <p>Keeps a Spack instance away from <code>~/.spack</code>: config, caches and stages go under <code>--self</code> or <code>--path</code>.</p></div>
+      <p>Avoid writing to <code>~/.spack</code> (will be improved further in v1.3).</div>
     <div class="card con"><h3>Sandboxing <span class="muted">(experimental)</span></h3>
       <p>Linux Landlock, no root or namespaces needed. A build can write only to its stage and prefix.</p></div>
   </div>
@@ -2192,7 +2192,7 @@ $ . spack/share/spack/setup-env.sh</pre>
   <h2>v1.2 features for sharing environments</h2>
   <div class="cols">
     <div>
-      <h3>One environment, several groups</h3>
+      <h3>Compiler bootstrapping with groups</h3>
 <pre class="code small">spack:
   specs:
   - group: compiler
@@ -2222,27 +2222,25 @@ $ . spack/share/spack/setup-env.sh</pre>
 
 <section class="slide">
   <div class="kicker">Spack v1.3 · in progress</div>
-  <h2>Shared Spack: a read-only Spack, many users</h2>
+  <h2>Isolation of Spack itself</h2>
   <div class="cols">
     <div>
-      <p>Spack is currently a git clone that writes into itself: <code>$spack/opt/spack</code>, <code>$spack/var/spack/environments</code>, GPG keys, licenses…</p>
-      <p><b>Shared Spack:</b> a fresh Spack writes <b>nothing</b> to its own prefix. Each user's data goes to XDG locations:</p>
+      <p>Spack is currently "installed" with git clone, and modifies files inside its dir, like <code>$spack/opt/spack</code>, <code>$spack/var/spack/environments</code>, GPG keys, licenses…</p>
+      <p><b>Shared Spack:</b> user data goes into XDG locations:</p>
 <pre class="code tiny">~/.config/spack       <span class="c"># config (was ~/.spack)</span>
 ~/.local/share/spack  <span class="c"># installs, envs, keys</span>
 ~/.local/state/spack  <span class="c"># misc cache, repos</span>
 ~/.cache/spack        <span class="c"># caches</span></pre>
-      <p class="small">You can move them with <code>config:locations:{data,state,cache}</code> or <code>SPACK_{DATA,STATE,CACHE}_HOME</code>.</p>
     </div>
     <div>
       <div class="card acc"><h3>What this enables</h3>
         <ul class="small">
           <li><code>pip install spack</code>, distro packages</li>
-          <li>One Spack installed by the site, used by everyone, with each user's installs in their own home</li>
-          <li>A Spack in a container image, read-only</li>
+          <li>Single Spack instance can be installed globally and used by multiple users</li>
         </ul>
       </div>
       <div class="card" style="margin-top:14px"><h3>Existing clones</h3>
-        <p class="small">After a <code>git pull</code>, Spack asks before it copies environments, keys and licenses. Existing installs are never moved.</p>
+        <p class="small">After a <code>git pull</code>, Spack asks before it copies environments, keys and licenses.</p>
       </div>
     </div>
   </div>
@@ -2256,14 +2254,14 @@ $ . spack/share/spack/setup-env.sh</pre>
     <div>
       <p>Some options change <b>how a dependency is used</b>, but not the dependency itself:</p>
       <ul class="small">
-        <li>build <i>my</i> code with ASan using this gcc</li>
-        <li>have the compiler write SARIF diagnostics for <i>this</i> package</li>
+        <li>when <i>using</i> gcc, enable ASan</li>
+        <li>when <i>using</i> gcc, write SARIF diagnostics</li>
       </ul>
       <p class="small">As a variant on <code>gcc</code>, this changes gcc's hash: gcc gets rebuilt, and every package in the DAG has to agree on the value.</p>
       <p class="small">A <b>usage</b> sits on the edge. It changes the hash of the <b>dependent</b>, and the dependency stays the same.</p>
     </div>
     <div>
-      <h3>Spec syntax</h3>
+      <h3>Spec syntax (subject to change)</h3>
 <pre class="code small">zlib-ng %[<span class="k">usages=+sarif</span>] gcc
 foo %[<span class="k">usages=+sarif sanitizers=asan</span>] gcc
 foo ^[deptypes=link <span class="k">usages=+sarif</span>] mpich</pre>
@@ -2271,7 +2269,7 @@ foo ^[deptypes=link <span class="k">usages=+sarif</span>] mpich</pre>
 <pre class="code small">class Gcc(Package):
     <span class="k">usage</span>("sarif", default=False,
           description="emit SARIF diagnostics")</pre>
-      <p class="small muted">Like <code>variant()</code>, but it can't be propagated. Names and API are not final.</p>
+      <p class="small muted">Similar to <code>variant()</code></p>
     </div>
   </div>
   <aside class="notes">RFD: spack/spack#52913. Directive, Usage classes, parser and DependencySpec support are merged on the features/usages branch (#52958, #52961, #53092, #53140). Concretizer support and @run_before_dependent / @run_after_dependent hooks (#53150) are still open.</aside>
