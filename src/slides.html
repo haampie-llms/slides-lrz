@@ -201,9 +201,9 @@ aside.notes { display: none; }
   <div class="cols">
     <div>
       <ul>
-        <li>A colleague wants to <b>reproduce</b> your results</li>
+        <li>A researcher / colleague wants to <b>reproduce</b> your results</li>
         <li>You move from a <b>laptop or VM</b> to a cluster</li>
-        <li>CI builds a stack, <b>users</b> run it</li>
+        <li>You build a stack in CI for your users</li>
         <li>The same stack on <b>several clusters</b>, or on short-lived cloud instances</li>
         <li>A <b>container</b> for Kubernetes, JupyterHub, Apptainer…</li>
       </ul>
@@ -242,7 +242,7 @@ aside.notes { display: none; }
 
 <section class="slide">
   <div class="kicker">Environments recap</div>
-  <h2>Two files: intent and decisions</h2>
+  <h2><code>spack.yaml</code> and <code>spack.lock</code></h2>
   <div class="cols">
     <div>
       <h3><code>spack.yaml</code>: input for the solver</h3>
@@ -319,12 +319,13 @@ $ spack env create myenv spack.lock   <span class="c"># reproduce exactly this D
   <h2>spack.lock is machine-specific</h2>
   <div class="cols w60">
     <div>
+      <p>Machine specific <code>target=znver3</code> or <code>target=cannonlake</code></p>
       <p>Externals are part of the DAG and of every dependent's hash. They record a <b>prefix on this machine</b>.</p>
-      <p>They make sharing difficult across different machines.</p>
+      <p>This makes sharing difficult across different machines.</p>
       <p class="small muted">Typical externals on HPC systems:</p>
       <table class="t">
-        <tr><td>compiler</td><td>system / vendor gcc, oneAPI, nvhpc</td></tr>
         <tr><td>libc</td><td><b class="warn">glibc: always</b></td></tr>
+        <tr><td>compiler</td><td>system / vendor gcc, oneAPI, nvhpc</td></tr>
         <tr><td>MPI</td><td>vendor MPI tuned for the fabric</td></tr>
         <tr><td>GPU</td><td>CUDA, ROCm, Level Zero drivers</td></tr>
         <tr><td>scheduler</td><td>Slurm, PMIx, libfabric/UCX providers</td></tr>
@@ -411,27 +412,27 @@ $ spack install       <span class="c"># fetch binaries, no builds</span></pre>
   <h2>Two ways to use a build cache</h2>
   <div class="cols">
     <div>
-      <h3>Shared cache + <code>spack.yaml</code></h3>
+      <h3>Build cache + <code>spack.yaml</code> (reuse concretization)</h3>
 <pre class="code small"><span class="c"># both machines configure the same mirror</span>
 $ spack env create myenv spack.yaml
 $ spack concretize   <span class="c"># reuses compatible binaries</span>
 $ spack install      <span class="c"># builds the rest</span></pre>
       <ul class="small">
         <li>Each machine concretizes for <b>itself</b>; the cache is a source of reusable binaries</li>
-        <li>Binaries that don't fit (older glibc on B, different externals, other target) are <b>built from source</b></li>
-        <li>Works well when B has a <b>newer glibc</b> than A</li>
+        <li>Reusable specs are <b>installed from the build cache</b>, others <b>built from source</b></li>
+        <li>Works well when B has a <b>glibc</b> version <b>&ge;</b> than A</li>
       </ul>
-      <div class="callout small" style="font-size:19px">Same software, as much reuse as possible.</div>
+      <div class="callout small" style="font-size:19px">As much reuse as possible.</div>
     </div>
     <div>
-      <h3>Build cache as an archive + <code>spack.lock</code></h3>
-<pre class="code small"><span class="c"># reproduce A's DAG on B, no source builds</span>
+      <h3>Build cache + <code>spack.lock</code></h3>
+<pre class="code small"><span class="c"># reproduce A's DAG on B without source builds</span>
 $ spack env create myenv spack.lock
 $ spack install --cache-only</pre>
       <ul class="small">
-        <li>Machine B gets <b>exactly the binaries</b> built on A</li>
-        <li>B must be compatible: glibc ≥ A's, CPU target, same externals</li>
-        <li>"Exactly", up to <b>relocation</b>: a different install root means rewritten paths in binaries and scripts</li>
+        <li>Machine B installs the <b>exact* same binaries</b> built on A</li>
+        <li>Works when machine B is equivalent to A: CPU target, externals</li>
+        <li>* "Exact" up to <b>relocation</b>: a different install root means rewritten paths in binaries and scripts</li>
       </ul>
       <div class="callout good small" style="font-size:19px">The same binaries, installed by Spack, on a compatible host.</div>
     </div>
@@ -446,7 +447,7 @@ $ spack install --cache-only</pre>
 </section>
 
 <section class="slide">
-  <div class="kicker">Patterns</div>
+  <div class="kicker">Sharing tips</div>
   <h2>Keeping environments shareable</h2>
   <div class="cols">
     <div>
@@ -463,17 +464,17 @@ $ spack install --cache-only</pre>
     <div>
       <h3>Using few externals</h3>
       <ul class="small">
-        <li><b class="good">Build it</b> when it's cheap and the host version doesn't matter: cmake, python, zlib, openblas…</li>
-        <li><b class="warn">Keep external</b> when it must match the host: MPI tuned for the fabric, Slurm/PMIx, ...</li>
-        <li>I do not advocate <code>spack external find</code> as much (but many people do).</li>
+        <li><b class="good">Just let Spack build things</b>, including <code>cmake</code>, <code>python</code>, <code>zlib</code>, …</li>
+        <li><b class="warn">Use externals when necessary</b>: closed-source libfabric, Slurm/PMIx, ...</li>
+        <li>I personally don't use <code>spack external find</code></li>
       </ul>
     </div>
   </div>
 </section>
 
 <section class="slide">
-  <div class="kicker">Context</div>
-  <h2>What other tools do</h2>
+  
+  <h2>How other tools handle "externals"</h2>
   <div class="cols c3">
     <div class="card acc"><h3>EESSI (CVMFS) / Nix / Guix</h3><p>Ship their <b>own libc</b> (or libcs) at a particular absolute path like </p><ul><li><code>/cvmfs/foo.cern.ch/...</code></li><li><code>/nix/store/...</code></li><li><code>/gnu/store/...</code></li></ul></div>
     <div class="card acc"><h3>Conda / pip</h3><p>Link against old glibc and assume compatibility, largely similar to Spack.</p></div>
@@ -538,7 +539,7 @@ $ docker build -t hpc-env .</pre>
     </div>
     <div>
       <ul class="small">
-        <li><code>images:</code> either an OS + Spack version (official <code>spack/ubuntu-noble:1.2</code> builder images), or custom <code>build</code> / <code>final</code> images, e.g. an NVIDIA CUDA base with CUDA as an external</li>
+        <li><code>images:</code> <ul><li>For build and runtime environment</li><li>Spack-provided images like <code>spack/ubuntu-noble:1.2</code>,</li><li>or custom <code>build</code> / <code>final</code> images, e.g. an NVIDIA CUDA base with CUDA as an external</li></ul></li>
         <li><code>os_packages:</code> distro packages for the build or final stage</li>
         <li><code>strip</code>, <code>labels</code></li>
         <li><code>format: singularity</code> writes a <code>.def</code> file</li>
@@ -568,9 +569,7 @@ RUN mkdir -p /opt/spack-environment &amp;&amp; set -o noclobber \
 <span class="e">RUN cd /opt/spack-environment &amp;&amp; spack env activate . &amp;&amp; \
     spack install --fail-fast &amp;&amp; spack gc -y</span>
 
-RUN find -L /opt/views/view/* -type f … | xargs strip
-RUN cd /opt/spack-environment &amp;&amp; \
-    spack env activate --sh -d . &gt; activate.sh
+...
 
 <span class="c"># Bare OS image to run the installed executables</span>
 <span class="k">FROM ubuntu:24.04</span>
@@ -582,7 +581,7 @@ ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "/bin/bash" ]</pre>
     <div>
       <ul class="small">
-        <li>The builder image provides Spack, compilers and the same OS as the final stage, so <b>glibc matches by construction</b></li>
+        <li>The builder image provides Spack, compilers and the same OS as the final stage</li>
         <li>Note: it ships <code>spack.yaml</code>, not <code>spack.lock</code>. It <b>concretizes inside the build</b>.</li>
         <li>One <code>RUN</code> step installs <b>everything</b>, so it becomes one big layer</li>
         <li>The final stage copies <code>/opt/software</code> and adds an entrypoint that activates the environment</li>
@@ -598,16 +597,16 @@ CMD [ "/bin/bash" ]</pre>
     <div class="card pro">
       <h3 class="good">Pros</h3>
       <ul class="small">
-        <li>The build environment <b>is</b> the base image: externals and glibc are under control. The part 1 problem largely disappears.</li>
-        <li>Self-contained, reviewable recipe; any CI or container builder understands it</li>
+        <li>Isolated build environment</li>
+        <li>Self-contained, reviewable recipe</li>
         <li>Singularity/Apptainer definition files for HPC</li>
-        <li>Add OS packages, files, users. Spack not needed on the target.</li>
+        <li>Can <code>apt/yum install ...</code> extras if needed</li>
       </ul>
     </div>
     <div class="card con">
       <h3 class="warn">Cons</h3>
       <ul class="small">
-        <li>Needs a builder (Docker, Podman, Buildah, Apptainer), often <b>root or fakeroot</b>: usually not on an HPC login node</li>
+        <li>Needs a builder (Docker, Podman, Buildah, Apptainer), not always available (or requires root)</li>
         <li>Everything in one <code>RUN</code>: any change to <code>spack.yaml</code> rebuilds <b>everything</b>; a failure throws away all finished dependencies</li>
         <li>Debugging a failed build inside a container build is painful</li>
         <li>One fat layer: no sharing between different images/tags</li>
@@ -636,7 +635,7 @@ RUN <span class="k">--mount=type=bind,from=buildcache,target=/mnt/cache</span> \
         <li>A file system build cache on the host is visible <b>only during that <code>RUN</code></b>, so it doesn't end up in a layer</li>
         <li><code>spack install</code> <b>fetches</b> what it can reuse, builds the rest</li>
         <li>Only binaries compatible with the <b>builder image</b> are reused: a cache built on a newer host glibc doesn't help</li>
-        <li>Nothing flows back: the bind mount is read-only (<code>rw</code> discards writes). <code>type=cache</code> persists, but inside the builder.</li>
+        <li>Can't easily add to build cache during build (read-only).</li>
         <li>Still one fat layer, still needs a builder</li>
       </ul>
       <div class="callout">What if a build cache and a container image were the same thing?</div>
@@ -686,7 +685,7 @@ RUN <span class="k">--mount=type=bind,from=buildcache,target=/mnt/cache</span> \
   </svg>
   <ul class="small">
     <li><code>docker pull</code>: resolve the tag, fetch the manifest and blobs, <b>unpack the tarballs in order</b>, start a process with the config's environment</li>
-    <li><code>docker push</code>: upload the blobs, then the manifest, then point the tag at it. <b>None of this needs Docker.</b></li>
+    <li><code>docker push</code>: upload the blobs, then the manifest, then point the tag at it.</li>
   </ul>
 </section>
 
@@ -738,12 +737,17 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
       oci://ghcr.io/myorg/buildcache       <span class="c"># or oci+http://localhost:5000/… for local tests</span></pre>
   <div class="cols">
     <ul class="small">
-      <li>Input: <b>installed</b> specs (built on the host, or in CI, where debugging is easy)</li>
-      <li>Output: per-package tags <code>name-version-hash.spack</code> <b>and</b> a runnable <code>:hpc-env</code></li>
-      <li>Only HTTP requests to a registry: no Docker, no daemon, <b>no root</b></li>
+      <li>Input: <b>installed</b> specs (built on the host, so easy to debug)</li>
+      <li>Output:
+      <ul>
+        <li>Container image tagged <br><code>ghcr.io/myorg/buildcache:hpc-env</code></li>
+        <li>and per-package tags <br><code>ghcr.io/myorg/buildcache:name-version-hash.spack</code></li>
+      </ul>
+      </li>
+      <li>No Docker / daemon / root access needed.</li>
     </ul>
     <ul class="small">
-      <li>Credentials via env vars: <code>spack mirror add --oci-username-variable U --oci-password-variable P name oci://…</code></li>
+      <li>Credentials via env vars: <br><code>spack mirror add --oci-username-variable U --oci-password-variable P name oci://…</code></li>
       <li>Without <code>--base-image</code> you get a "distroless" image: a fine build cache, but not runnable</li>
     </ul>
   </div>
@@ -775,10 +779,9 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
     </svg>
     <ul class="small">
       <li><b>link + run</b> dependencies only, in topological order</li>
-      <li>Layers are <b>independent</b>, unlike a Dockerfile's: no file in one layer overwrites another, so any subset is a valid image</li>
-      <li>The config's <code>Env</code> comes from Spack's own environment modifications (<code>PATH</code>, …). <b>No view.</b></li>
+      <li>Curiosity: layers are <b>independent</b> (unlike with Dockerfile)</li>
+      <li>The config's <code>Env</code> comes from Spack's own environment modifications (<code>PATH</code>, …</li>
       <li>The full spec JSON goes in the image config, so <code>spack install</code> can use it</li>
-      <li>Matches the base image's manifest media type (Docker v2 vs OCI). <span class="muted">Apptainer refuses to mix them.</span></li>
     </ul>
   </div>
 </section>
@@ -806,22 +809,15 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 
 <section class="slide">
   <div class="kicker">On HPC systems</div>
-  <h2>The same image on HPC container runtimes</h2>
-  <div class="cols">
-    <div>
-      <table class="t">
-        <tr><th>runtime</th><th>how</th></tr>
-        <tr><td>Apptainer</td><td><code>apptainer build env.sif docker://registry/img:tag</code></td></tr>
-        <tr><td>Enroot</td><td><code>enroot import docker://registry#img:tag</code></td></tr>
-        <tr><td>Charliecloud</td><td><code>ch-image pull registry/img:tag</code></td></tr>
-        <tr><td>Kubernetes, JupyterHub</td><td>containerd: as is</td></tr>
-      </table>
-      <p class="small" style="margin-top:12px">They do what we just did by hand: download the blobs, unpack the layers into one directory, squashfs or SIF, and run it unprivileged. No overlayfs, so no layer limit.</p>
-    </div>
-    <div>
-      <div class="callout small" style="font-size:19px"><b>glibc, again:</b> the <code>lstopo</code> that failed natively on SLES 15 SP6 runs fine in the image, because the <code>ubuntu:26.04</code> base brings its own glibc 2.43.</div>
-      <div class="callout small" style="font-size:19px"><b>Firewalled systems</b>: push from a build host or CI, then pull through a proxy (e.g. an SSH reverse tunnel and <code>https_proxy</code>), or use a file system build cache for fully offline systems.</div>
-    </div>
+  <h2>OCI container images are compatible with other tools</h2>
+  <div>
+    <table class="t">
+      <tr><th>runtime</th><th>how</th></tr>
+      <tr><td>Apptainer</td><td><code>apptainer build env.sif docker://registry/img:tag</code></td></tr>
+      <tr><td>Enroot</td><td><code>enroot import docker://registry#img:tag</code></td></tr>
+      <tr><td>Charliecloud</td><td><code>ch-image pull registry/img:tag</code></td></tr>
+      <tr><td>Kubernetes, JupyterHub</td><td>containerd: as is</td></tr>
+    </table>
   </div>
 </section>
 
@@ -839,18 +835,20 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
       <h3 class="good">You get</h3>
       <ul class="small">
         <li><b>Deduplication</b>: images that share dependencies share layers, in the registry and in the runtime's local store</li>
-        <li><b>Incremental</b> pushes: only changed packages are uploaded</li>
-        <li>Build where debugging is easy; <b>no privileges</b> needed to produce images</li>
-        <li>One artifact serves both <code>spack install</code> and <code>docker run</code></li>
+        <li><b>Incremental</b> pushes: only new builds are uploaded</li>
+        <li>Building on the host is easier to troubleshoot</li>
+        <li>No root needed</li>
+        <li>The container registry serves both <code>spack install</code> and <code>docker run</code></li>
       </ul>
     </div>
     <div class="card con">
-      <h3 class="warn">You inherit</h3>
+      <h3 class="warn">Things to be aware of</h3>
       <ul class="small">
-        <li>The <b>host build</b>: glibc and CPU target of the build machine. Pick the base image accordingly.</li>
+        <li>You need to pick a base image with compatible glibc</li>
+        <li>Use generic targets like <code>target=x86_64_v2</code> for CPU compat</li>
         <li>The <b>install paths</b>: <code>/home/me/spack/opt/…</code> ends up in the image. Use a neutral <code>install_tree: root: /opt/spack</code>.</li>
-        <li><b>No view, no entrypoint</b>: <code>PATH</code> lists every package prefix</li>
         <li>One architecture per tag (no multi-arch index)</li>
+        <li>Some limitations to max number of layers</li>
       </ul>
     </div>
   </div>
@@ -895,38 +893,26 @@ const maxLayerDepth = 125</pre>
 
 <section class="slide">
   <div class="kicker">Layer limit</div>
-  <h2>Working around it</h2>
+  <h2>Working around layer limits</h2>
   <ul>
-    <li><b>Check your runtime first</b>: <code>docker info --format '{{.Driver}}'</code>. On a containerd image store or Podman, 125 is not your limit.</li>
-    <li><b>Smaller images</b>: push sub-environments, or only the roots you need (<code>spack buildcache push --tag x mirror spec…</code>)</li>
+    <li><b>Smaller images</b>: push subset of environment<br><code>spack buildcache push --tag x mirror hdf5 python</code></li>
     <li><b>Flattening runtimes</b> (Apptainer, Enroot, Charliecloud) don't have the limit at all</li>
-    <li><b>Squash after the fact</b> into one layer (e.g. a <code>FROM … / COPY --from</code> stage), but you lose the per-package dedup</li>
-    <li>Fewer packages: prefer externals from the base image for "OS-like" dependencies, e.g. <code>ncurses</code>, <code>openssl</code>, <code>zlib</code>. That's again the externals ↔ base image trade-off.</li>
+    <li><b>Request</b> me to implement a form of layer squashing</li>
+    <li>Use some externals from base image; that's again the externals ↔ base image trade-off.</li>
   </ul>
 </section>
 
 <section class="slide">
   <div class="kicker">Aside</div>
-  <h2>MPI and GPUs: what containers don't solve</h2>
+  <h2>Containers don't solve all the runtime problems</h2>
   <div class="cols">
     <div>
       <p>The container's MPI must talk to the <b>host's</b> launcher (Slurm/PMIx) and fabric (libfabric/UCX providers, drivers).</p>
       <ul class="small">
         <li><b>Hybrid</b>: an MPI inside the image that is compatible with the host's process manager and fabric, launched with <code>srun</code> / <code>mpiexec</code> from outside</li>
         <li><b>Bind</b>: mount the host's MPI over the container's. Requires ABI compatibility: the MPICH family (MPICH, Intel MPI, Cray MPICH) shares an ABI; MPI 5.0 standardizes one.</li>
-        <li>GPU drivers always come from the host (<code>--nv</code>, CDI, …)</li>
+        <li>GPU drivers / <code>libcuda.so</code> are outside of Spack's scope, they are from the system.</li>
       </ul>
-    </div>
-    <div>
-      <div class="callout">With Spack this is the <b>externals</b> story again. Make MPI an external that the base image provides (a site base image with the system MPI stack). <code>buildcache push</code> skips externals, so the image uses whatever the base provides.</div>
-<pre class="code small">packages:
-  mpi:
-    require: intel-oneapi-mpi
-  intel-oneapi-mpi:
-    buildable: false
-    externals:
-    - spec: intel-oneapi-mpi@2021.14
-      prefix: /opt/intel/oneapi  <span class="c"># in the base image</span></pre>
     </div>
   </div>
 </section>
