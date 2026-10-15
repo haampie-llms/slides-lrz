@@ -230,13 +230,12 @@ aside.notes { display: none; }
   </div>
   <div>
   <br>
-  <p>There are other ways I won't cover in this talk, namely central installations with
+  <p>There are other ways I won't cover in this talk, namely central installations with</p>
   <ul>
     <li>environment modules (<code>module load hdf5</code>)</li>
     <li>Spack environment views (like Python virtual environments)</li>
     <li>an upstream database for Spack users</li>
   </ul>
-  </p>
   </div>
 </section>
 
@@ -301,8 +300,8 @@ $ spack -e my-env install
     unify: true</pre>
 
 <pre class="code dark">$ spack env create myenv spack.yaml
-$ spack -e my-env concretize
-$ spack -e my-env install
+$ spack -e myenv concretize
+$ spack -e myenv install
 </pre>
     </div>
     <div>
@@ -427,9 +426,9 @@ $ spack -e myenv install
   <div class="cols">
     <div>
 <pre class="code dark">$ spack mirror add --unsigned mycache file:///shared/cache
-$ spack buildcache push --update-index mycache
+$ spack -e myenv buildcache push --update-index mycache
 <span class="c"># elsewhere: same mirror config + spack.lock</span>
-$ spack install       <span class="c"># fetch binaries, no builds</span></pre>
+$ spack -e myenv install  <span class="c"># fetch binaries, no builds</span></pre>
       <ul class="small">
         <li>One tarball per package (+ spec metadata), on a file system, S3, HTTP, or an <b>OCI registry</b></li>
         <li><code>--update-index</code> rebuilds the index used for <b>reuse</b> by the concretizer</li>
@@ -455,12 +454,12 @@ $ spack install       <span class="c"># fetch binaries, no builds</span></pre>
       <h3>Build cache + <code>spack.yaml</code> (reuse concretization)</h3>
 <pre class="code small"><span class="c"># both machines configure the same mirror</span>
 $ spack env create myenv spack.yaml
-$ spack concretize   <span class="c"># reuses compatible binaries</span>
-$ spack install      <span class="c"># builds the rest</span></pre>
+$ spack -e myenv concretize  <span class="c"># reuses binaries</span>
+$ spack -e myenv install     <span class="c"># builds the rest</span></pre>
       <ul class="small">
         <li>Each machine concretizes for <b>itself</b>; the cache is a source of reusable binaries</li>
         <li>Reusable specs are <b>installed from the build cache</b>, others <b>built from source</b></li>
-        <li>Works well when B has a <b>glibc</b> version <b>&ge;</b> than A</li>
+        <li>Works well when B has a <b>glibc</b> version <b>&ge;</b> that of A</li>
       </ul>
       <div class="callout small" style="font-size:19px">As much reuse as possible.</div>
     </div>
@@ -468,7 +467,7 @@ $ spack install      <span class="c"># builds the rest</span></pre>
       <h3>Build cache + <code>spack.lock</code></h3>
 <pre class="code small"><span class="c"># reproduce A's DAG on B without source builds</span>
 $ spack env create myenv spack.lock
-$ spack install --cache-only</pre>
+$ spack -e myenv install --cache-only</pre>
       <ul class="small">
         <li>Machine B installs the <b>exact* same binaries</b> built on A</li>
         <li>Works when machine B is equivalent to A: CPU target, externals</li>
@@ -771,10 +770,13 @@ home/bot/lrz-demo/store/…/zlib-ng-2.3.3-g72d…/lib/libz.so.1
 <section class="slide">
   <div class="kicker">spack buildcache push</div>
   <h2>Archive what is installed</h2>
-<pre class="code dark">$ spack -e . buildcache push \
-      --base-image ubuntu:26.04 \          <span class="c"># provides glibc + the rest of the OS</span>
-      --tag hpc-env \                      <span class="c"># one image for all roots + runtime deps</span>
-      oci://ghcr.io/myorg/buildcache       <span class="c"># or oci+http://localhost:5000/… for local tests</span></pre>
+<pre class="code dark"><span class="c"># --base-image: provides glibc + the rest of the OS</span>
+<span class="c"># --tag: one image for all roots + runtime deps</span>
+<span class="c"># mirror: or oci+http://localhost:5000/… for local tests</span>
+$ spack -e . buildcache push \
+      --base-image ubuntu:26.04 \
+      --tag hpc-env \
+      oci://ghcr.io/myorg/buildcache</pre>
   <div class="cols">
     <ul class="small">
       <li>Input: <b>installed</b> specs (built on the host, so easy to debug)</li>
@@ -962,7 +964,7 @@ const maxLayerDepth = 125</pre>
   <h2>containerize vs. buildcache push</h2>
   <table class="t">
     <tr><th></th><th><code>spack containerize</code></th><th><code>spack buildcache push --base-image</code></th></tr>
-    <tr><td>Builds happen</td><td>inside a container build</td><td>on the host, in CI, in a constainer, ...</td></tr>
+    <tr><td>Builds happen</td><td>inside a container build</td><td>on the host, in CI, in a container, ...</td></tr>
     <tr><td>Needs</td><td>Docker / Podman / Apptainer, often root</td><td>a registry; no privileges</td></tr>
     <tr><td>glibc / externals</td><td><b class="good">controlled</b> by the builder image</td><td><b class="warn">inherited</b> from the host; pick a compatible base</td></tr>
     <tr><td>Layers</td><td>one "fat" layer</td><td>one per Spack package</td></tr>
@@ -1096,7 +1098,7 @@ $ . spack/share/spack/setup-env.sh</pre>
 </section>
 
 <section class="slide">
-  <div class="kicker">Spack v1.3 · in progress</div>
+  <div class="kicker">Spack v1.3 · in progress, not merged yet</div>
   <h2>Isolation of Spack itself</h2>
   <div class="cols">
     <div>
@@ -1123,7 +1125,7 @@ $ . spack/share/spack/setup-env.sh</pre>
 </section>
 
 <section class="slide">
-  <div class="kicker">Spack v1.3 · in progress</div>
+  <div class="kicker">Spack v1.3 · in progress, not merged yet</div>
   <h2>Usages: variants on dependency edges</h2>
   <div class="cols">
     <div>
@@ -1133,6 +1135,7 @@ $ . spack/share/spack/setup-env.sh</pre>
         <li>when <i>using</i> gcc, write SARIF diagnostics</li>
       </ul>
       <p class="small">As a variant on <code>gcc</code>, this changes gcc's hash: gcc gets rebuilt, and every package in the DAG has to agree on the value.</p>
+      <p class="small">A <b>usage</b> sits on the edge: it changes the hash of the <b>dependent</b>, and gcc stays the same.</p>
     </div>
     <div>
       <h3>Spec syntax (subject to change)</h3>
@@ -1165,7 +1168,7 @@ foo ^[deptypes=link <span class="k">usages=+sarif</span>] mpich</pre>
       <ul class="small">
         <li><code>reason</code>: <code>vuln</code>, <code>rename</code>, <code>retired</code> or <code>unspecified</code></li>
         <li><code>severity</code>: <code>low</code> … <code>critical</code>, following CVSS ratings</li>
-        <li>Replaces boolean <code>version(…, deprecated=True)</code> which was per version.</li>
+        <li>Replaces <code>version(…, deprecated=True)</code>: now any spec, e.g. <code>deprecated("@1.2 +foo", …)</code></li>
       </ul>
     </div>
     <div>
@@ -1180,6 +1183,7 @@ foo ^[deptypes=link <span class="k">usages=+sarif</span>] mpich</pre>
         severity: none</pre>
       <ul class="small">
         <li>Not every CVE is as critical; it depends on the context.</li>
+        <li>Nothing is allowed by default: a deprecation that isn't allowed is an <b>error</b></li>
       </ul>
     </div>
   </div>
