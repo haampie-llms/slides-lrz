@@ -1037,42 +1037,24 @@ $ . spack/share/spack/setup-env.sh</pre>
 
 <section class="slide">
   <div class="kicker">Spack v1.2 · June 2026</div>
-  <h2>v1.2 features for sharing environments</h2>
+  <h2>Concretization groups</h2>
   <div class="cols">
     <div>
-      <h3>Compiler bootstrapping with groups</h3>
+      <h3>Bootstrap a compiler: <code>needs:</code></h3>
 <pre class="code small">spack:
   specs:
   - group: compiler
     specs: [gcc@15.2]
+
   - group: apps
     <span class="k">needs: [compiler]</span>
     specs:
     - hdf5 %gcc@15.2
     - libtree %gcc@15.2</pre>
-      <p class="small muted">Previously you needed one environment per compiler or target.</p>
+      <p class="small">The groups listed in <code>needs:</code> are concretized first, and their specs can be reused.</p>
     </div>
     <div>
-      <h3>Build caches</h3>
-      <ul class="small">
-        <li>Choose which specs a mirror is used for, when installing or fetching:
-<pre class="code tiny">mirrors:
-  site:
-    url: oci://…
-    include_binary: ["%gcc"]
-    exclude_binary: ["^mpich"]</pre></li>
-        <li><code>spack concretize</code> marks specs that are not installed yet but are in a build cache with <code>[b]</code></li>
-        <li>The new installer writes the database faster, which you notice when installing many packages from a build cache</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section class="slide">
-  <div class="kicker">Spack v1.2 · June 2026</div>
-  <h2>Groups: CPU and CUDA builds in one environment</h2>
-  <div class="cols">
-    <div>
+      <h3>CPU and CUDA builds: <code>override:</code></h3>
 <pre class="code small">spack:
   specs:
   - group: cpu
@@ -1085,18 +1067,33 @@ $ . spack/share/spack/setup-env.sh</pre>
         all:
           require: "+cuda cuda_arch=90"
   view: false</pre>
+      <p class="small">The override is a config scope for that group only. Packages without a <code>cuda</code> variant, like <code>fftw</code>, are not affected.</p>
+    </div>
+  </div>
+  <p class="small muted">Each group is concretized on its own. Previously this took several environments. Now it is one <code>spack.lock</code>, one <code>spack install</code>, and one <code>buildcache push</code>.</p>
+  <aside class="notes">The same override pattern works for targets (x86_64_v3 vs v4) or CUDA vs ROCm. view: false because both groups have a gromacs root, which would clash in a single view.</aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Spack v1.2 · June 2026</div>
+  <h2>v1.2 features for build caches</h2>
+  <div class="cols">
+    <div>
+      <h3>Choose what a mirror is used for</h3>
+<pre class="code small">mirrors:
+  site:
+    url: oci://…
+    include_binary: ["%gcc"]
+    exclude_binary: ["^mpich"]</pre>
+      <p class="small">This applies both when installing from the mirror and when pushing to it.</p>
     </div>
     <div>
       <ul class="small">
-        <li>Each group is <b>concretized on its own</b>, with its own configuration</li>
-        <li><code>override:</code> is added as the topmost config scope, for that group only</li>
-        <li>A requirement under <code>all:</code> only applies to packages that have <i>both</i> variants, so <code>zlib</code> or <code>fftw</code> are not affected</li>
-        <li>Previously this took two environments. Now it is one <code>spack.lock</code>, one <code>spack install</code>, and one <code>buildcache push</code></li>
+        <li><code>spack concretize</code> marks specs that are not installed yet but are in a build cache with <code>[b]</code></li>
+        <li>The new installer writes the database faster, which you notice when installing many packages from a build cache</li>
       </ul>
-      <p class="small muted">The same pattern works for targets (<code>x86_64_v3</code> vs <code>v4</code>) or CUDA vs ROCm.</p>
     </div>
   </div>
-  <aside class="notes">Compiler bootstrap on the previous slide shows needs:, this one shows override:. view: false because both groups have a gromacs root, which would clash in a single view.</aside>
 </section>
 
 <section class="slide">
