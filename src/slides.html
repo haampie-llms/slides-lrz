@@ -1029,7 +1029,7 @@ $ . spack/share/spack/setup-env.sh</pre>
     <div class="card acc"><h3>SBOMs</h3>
       <p>Every install gets an SPDX 2.3 SBOM in <code>$prefix/.spack/sbom</code>.</p></div>
     <div class="card acc"><h3><code>spack isolate</code></h3>
-      <p>Avoid writing to <code>~/.spack</code> (will be improved further in v1.3).</div>
+      <p>Avoid writing to <code>~/.spack</code> (will be improved further in v1.3).</p></div>
     <div class="card con"><h3>Sandboxing <span class="muted">(experimental)</span></h3>
       <p>Linux Landlock, no root or namespaces needed. A build can write only to its stage and prefix.</p></div>
   </div>
@@ -1066,6 +1066,37 @@ $ . spack/share/spack/setup-env.sh</pre>
       </ul>
     </div>
   </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Spack v1.2 · June 2026</div>
+  <h2>Groups: CPU and CUDA builds in one environment</h2>
+  <div class="cols">
+    <div>
+<pre class="code small">spack:
+  specs:
+  - group: cpu
+    specs: [gromacs, lammps]
+
+  - group: cuda
+    specs: [gromacs, lammps]
+    <span class="k">override:</span>
+      packages:
+        all:
+          require: "+cuda cuda_arch=90"
+  view: false</pre>
+    </div>
+    <div>
+      <ul class="small">
+        <li>Each group is <b>concretized on its own</b>, with its own configuration</li>
+        <li><code>override:</code> is added as the topmost config scope, for that group only</li>
+        <li>A requirement under <code>all:</code> only applies to packages that have <i>both</i> variants, so <code>zlib</code> or <code>fftw</code> are not affected</li>
+        <li>Previously this took two environments. Now it is one <code>spack.lock</code>, one <code>spack install</code>, and one <code>buildcache push</code></li>
+      </ul>
+      <p class="small muted">The same pattern works for targets (<code>x86_64_v3</code> vs <code>v4</code>) or CUDA vs ROCm.</p>
+    </div>
+  </div>
+  <aside class="notes">Compiler bootstrap on the previous slide shows needs:, this one shows override:. view: false because both groups have a gromacs root, which would clash in a single view.</aside>
 </section>
 
 <section class="slide">
@@ -1125,30 +1156,41 @@ foo ^[deptypes=link <span class="k">usages=+sarif</span>] mpich</pre>
 
 <section class="slide">
   <div class="kicker">Spack v1.3 · planned for November 2026</div>
-  <h2>Also in v1.3 <span class="muted" style="font-weight:400">(already on <code>develop</code>)</span></h2>
+  <h2>Deprecations with a reason and a severity</h2>
   <div class="cols">
     <div>
+      <h3>Package authors</h3>
+<pre class="code small">class Openssl(Package):
+    version("3.0.7", sha256="…")
+    version("1.1.1t", sha256="…")
+
+    <span class="k">deprecated</span>("@1.1.1t", reason="vuln",
+               severity="high",
+               labels=["CVE-2023-0286"])</pre>
       <ul class="small">
-        <li><b>Hosts without compilers</b> can concretize and install, as long as a build cache or an included environment provides the compiler</li>
-        <li><b>Shared and read-only concretization caches</b></li>
-        <li><b><code>deprecated()</code> directive</b>, with a reason and a severity. Users choose how much to accept with <code>deprecation:allow</code></li>
-        <li><code>install</code> / <code>buildcache push --only dependencies</code> work with groups</li>
-        <li>Module files: a <code>hierarchical</code> option for both Tcl and Lmod</li>
-        <li><code>spack uninstall</code> can also remove implicit dependents</li>
-        <li><code>spack mirror add-archive</code> adds a tarball you downloaded yourself to a mirror</li>
+        <li><code>reason</code>: <code>vuln</code>, <code>rename</code>, <code>retired</code> or <code>unspecified</code></li>
+        <li><code>severity</code>: <code>low</code> … <code>critical</code>, following CVSS ratings</li>
+        <li>Replaces <code>version(…, deprecated=True)</code>, which was a plain yes or no</li>
       </ul>
     </div>
     <div>
-      <div class="card acc"><h3>Faster</h3>
-        <ul class="small">
-          <li>Spec parser about 2× faster, solver setup is quicker</li>
-          <li>A concretization cache hit doesn't load clingo at all</li>
-          <li>S3 build caches: manifests are listed, not downloaded</li>
-        </ul>
-      </div>
-      <p class="small muted" style="margin-top:14px">Still the goal for v1.3: the Landlock build sandbox on by default.</p>
+      <h3>Sites and users</h3>
+<pre class="code small">packages:
+  all:
+    deprecation:
+      allow:
+      - reason: [rename, retired, unspecified]
+        severity: low
+      - reason: vuln
+        severity: none</pre>
+      <ul class="small">
+        <li>If a deprecation isn't allowed, it's an <b>error</b>: when concretizing, and before installing from an existing <code>spack.lock</code></li>
+        <li>An allowed deprecation causes no warning and no penalty in the solve</li>
+        <li><code>--deprecated</code> allows everything for a single command</li>
+      </ul>
     </div>
   </div>
+  <aside class="notes">spack/spack#52372, on develop. Package API v2.6. By default nothing is allowed, so Spack does not select a deprecated version unless the configuration says so. Selectors can also match labels (CVE/GHSA ids), so a site can allow specific advisories it has assessed.</aside>
 </section>
 
 </div>
