@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Build a single, self-contained slides.html from src/slides.html.
-
-- inlines vendor/asciinema-player.{css,min.js} and the Spack logo
-- embeds every casts/<name>.cast referenced by <div class="term" data-cast="name">
-- renders each cast into a static, colored transcript (used for printing / PDF)
-
-Requires `pyte` (pip install pyte). Usage: python3 tools/build.py
-"""
+"""Build index.html from src/slides.html. Requires pyte."""
 
 import html
 import json
@@ -17,7 +10,7 @@ import pyte
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src" / "slides.html"
-OUT = ROOT / "slides.html"
+OUT = ROOT / "index.html"
 
 # Max transcript lines for print; longer transcripts are elided in the middle.
 MAX_PRINT_LINES = 46
