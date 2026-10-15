@@ -1065,18 +1065,17 @@ $ . spack/share/spack/setup-env.sh</pre>
     <span class="k">override:</span>
       packages:
         all:
-          require: "+cuda cuda_arch=90"
+          prefer: ["+cuda cuda_arch=90"]
   view: false</pre>
-      <p class="small">The override is a config scope for that group only. Packages without a <code>cuda</code> variant, like <code>fftw</code>, are not affected.</p>
+      <p class="small">The override is a config scope for that group only.</p>
     </div>
   </div>
-  <p class="small muted">Each group is concretized on its own. Previously this took several environments. Now it is one <code>spack.lock</code>, one <code>spack install</code>, and one <code>buildcache push</code>.</p>
   <aside class="notes">The same override pattern works for targets (x86_64_v3 vs v4) or CUDA vs ROCm. view: false because both groups have a gromacs root, which would clash in a single view.</aside>
 </section>
 
 <section class="slide">
   <div class="kicker">Spack v1.2 · June 2026</div>
-  <h2>v1.2 features for build caches</h2>
+  <h2>v1.2 improvements for build caches</h2>
   <div class="cols">
     <div>
       <h3>Choose what a mirror is used for</h3>
@@ -1134,7 +1133,6 @@ $ . spack/share/spack/setup-env.sh</pre>
         <li>when <i>using</i> gcc, write SARIF diagnostics</li>
       </ul>
       <p class="small">As a variant on <code>gcc</code>, this changes gcc's hash: gcc gets rebuilt, and every package in the DAG has to agree on the value.</p>
-      <p class="small">A <b>usage</b> sits on the edge. It changes the hash of the <b>dependent</b>, and the dependency stays the same.</p>
     </div>
     <div>
       <h3>Spec syntax (subject to change)</h3>
@@ -1167,7 +1165,7 @@ foo ^[deptypes=link <span class="k">usages=+sarif</span>] mpich</pre>
       <ul class="small">
         <li><code>reason</code>: <code>vuln</code>, <code>rename</code>, <code>retired</code> or <code>unspecified</code></li>
         <li><code>severity</code>: <code>low</code> … <code>critical</code>, following CVSS ratings</li>
-        <li>Replaces <code>version(…, deprecated=True)</code>, which was a plain yes or no</li>
+        <li>Replaces boolean <code>version(…, deprecated=True)</code> which was per version.</li>
       </ul>
     </div>
     <div>
@@ -1181,9 +1179,7 @@ foo ^[deptypes=link <span class="k">usages=+sarif</span>] mpich</pre>
       - reason: vuln
         severity: none</pre>
       <ul class="small">
-        <li>If a deprecation isn't allowed, it's an <b>error</b>: when concretizing, and before installing from an existing <code>spack.lock</code></li>
-        <li>An allowed deprecation causes no warning and no penalty in the solve</li>
-        <li><code>--deprecated</code> allows everything for a single command</li>
+        <li>Not every CVE is as critical; it depends on the context.</li>
       </ul>
     </div>
   </div>
