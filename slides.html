@@ -2114,16 +2114,14 @@ err: invalid argument
   <h2>containerize vs. buildcache push</h2>
   <table class="t">
     <tr><th></th><th><code>spack containerize</code></th><th><code>spack buildcache push --base-image</code></th></tr>
-    <tr><td>Builds happen</td><td>inside a container build</td><td>on the host or in CI, before</td></tr>
+    <tr><td>Builds happen</td><td>inside a container build</td><td>on the host, in CI, in a constainer, ...</td></tr>
     <tr><td>Needs</td><td>Docker / Podman / Apptainer, often root</td><td>a registry; no privileges</td></tr>
     <tr><td>glibc / externals</td><td><b class="good">controlled</b> by the builder image</td><td><b class="warn">inherited</b> from the host; pick a compatible base</td></tr>
-    <tr><td>Layers</td><td>one fat layer</td><td>one per package, deduplicated</td></tr>
+    <tr><td>Layers</td><td>one "fat" layer</td><td>one per Spack package</td></tr>
     <tr><td>Change one package</td><td>rebuild (or re-fetch) everything</td><td>push one layer</td></tr>
-    <tr><td>Customization</td><td>anything a Dockerfile can do</td><td>add a thin <code>FROM spack-image</code> Dockerfile</td></tr>
-    <tr><td>Doubles as build cache</td><td>no (unless you add one)</td><td><b class="good">yes</b></td></tr>
-    <tr><td>Limits</td><td>build time</td><td>layer count (125 for Docker's overlay2)</td></tr>
+    <tr><td>Customization</td><td>anything a Dockerfile can do</td><td>no, would require <code>FROM spack-image</code> Dockerfile</td></tr>
+    <tr><td>Doubles as build cache</td><td>no</td><td><b class="good">yes</b></td></tr>
   </table>
-  <div class="callout good" style="margin-top:16px">Build where debugging is easy, <b>archive</b> into images, and keep Dockerfiles for what really has to run inside.</div>
 </section>
 
 <!-- ======================================================= PART 4 -->
@@ -2156,20 +2154,6 @@ $ . spack/share/spack/setup-env.sh</pre>
       </ul>
     </div>
   </div>
-</section>
-
-<!-- ======================================================= WRAP UP -->
-<section class="slide">
-  <div class="kicker">Summary</div>
-  <h2>What do you assume the other machine has?</h2>
-  <div class="spectrum">
-    <div class="st"><div class="n">spack.yaml</div><div class="row">Re-concretizes: the right build for <i>that</i> machine. Pin the repo and target.</div></div>
-    <div class="st"><div class="n">spack.lock</div><div class="row">Exact DAG. Externals (<b>glibc</b>, compilers, MPI) must match.</div></div>
-    <div class="st"><div class="n">build cache</div><div class="row">Same binaries anywhere with a compatible glibc + CPU. Pad the install root.</div></div>
-    <div class="st"><div class="n">container image</div><div class="row">Externals come from the <b>base image</b>. Built inside (<code>containerize</code>) or archived (<code>buildcache push</code>).</div></div>
-  </div>
-  <div class="callout" style="margin-top:26px">A container image is an <b>archive</b>: a manifest, a JSON config and tarballs. Spack's build cache already produces those tarballs, so one registry serves both <code>spack install</code> and <code>docker run</code>.</div>
-  <p class="small muted" style="margin-top:10px">Docs: spack.readthedocs.io → <i>Container Images</i>, <i>Build Caches</i>, <i>Environments</i> · Tutorial: spack-tutorial.readthedocs.io · Chat: slack.spack.io</p>
 </section>
 
 <section class="slide title">
